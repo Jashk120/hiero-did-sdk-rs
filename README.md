@@ -1,147 +1,118 @@
 # hiero-did-sdk-rs
 
-Rust workspace for creating and resolving `did:hedera` identifiers using Hedera Consensus Service (HCS).
+Rust workspace for creating and resolving `did:hedera` identifiers over Hedera Consensus Service (HCS).
 
 ## Documentation
 
-- See [`docs/README.md`](docs/README.md) for topic-specific guides.
-- API details: [`docs/api-reference.md`](docs/api-reference.md)
-- Creation-only guide: [`docs/create-did.md`](docs/create-did.md)
+- Docs index: [`docs/README.md`](docs/README.md)
+- Create DID guide: [`docs/create-did.md`](docs/create-did.md)
+- API reference: [`docs/api-reference.md`](docs/api-reference.md)
 - Testing guide: [`docs/testing.md`](docs/testing.md)
 
-## What This Repo Contains
+## Workspace Crates
 
-This is a Cargo workspace with multiple crates:
-
-- `hiero-did-core`: DID types, document models, key utilities, shared errors.
+- `hiero-did-core`: DID types, DID document models, errors, and key utilities.
 - `hiero-did-method`: DID parsing and validation helpers.
-- `hiero-did-messages`: HCS message/envelope models for DID owner events.
-- `hiero-did-hcs`: HCS client/topic helpers.
-- `hiero-did-signer`: internal Ed25519 signing and verification.
-- `hiero-did-registrar`: DID creation flow (create topic + publish owner message).
+- `hiero-did-messages`: HCS message, envelope, and event models.
+- `hiero-did-signer`: internal Ed25519 sign/verify helpers.
+- `hiero-did-hcs`: Hedera client/topic helpers for HCS operations.
+- `hiero-did-registrar`: high-level DID creation workflow.
 - `hiero-did-resolver`: mirror-node fetch + DID document reconstruction.
+- `hiero-did-sdk`: umbrella crate that re-exports all crates above.
 
 ## Prerequisites
 
-- Rust toolchain (edition `2024` is used; latest stable Rust is recommended)
+- Rust stable toolchain (workspace uses edition `2024`)
 - Cargo
-- Network access for Hedera testnet/mainnet integration tests
-- Hedera credentials for integration tests
+- Outbound network access for integration tests
+- Hedera test account credentials for integration tests
 
-## Setup
-
-1. Clone the repository.
-2. (Optional) Create/update `.env` in repo root for integration tests:
+Optional `.env` for integration tests:
 
 ```env
 HEDERA_ACCOUNT_ID=0.0.xxxxx
 HEDERA_PRIVATE_KEY=302e020100300506032b657004220420...
 ```
 
-Notes:
-- `HEDERA_PRIVATE_KEY` must be DER format because tests use `PrivateKey::from_str_der`.
-- Keep `.env` secret and do not commit real credentials.
+`HEDERA_PRIVATE_KEY` must be DER format (`PrivateKey::from_str_der`).
 
 ## Build
-
-Build all crates:
 
 ```bash
 cargo build --workspace
 ```
 
-Build a specific crate:
+## Test
 
-```bash
-cargo build -p hiero-did-registrar
-```
-
-## Run Tests
-
-### 1. Run all workspace tests
+Run all tests:
 
 ```bash
 cargo test --workspace
 ```
 
-Important:
-- This includes `registrar/tests/integration_test.rs`.
-- Integration tests contact Hedera and mirror-node endpoints and require valid `.env` + outbound network access.
-
-### 2. Run only local/unit tests (no Hedera network)
-
-This workspace currently has mostly compile-level coverage and no unit test bodies yet. To skip the integration test binary:
-
-```bash
-cargo test --workspace --exclude hiero-did-registrar
-```
-
-### 3. Run integration tests only
+Run integration tests only:
 
 ```bash
 cargo test -p hiero-did-registrar --test integration_test -- --nocapture
 ```
 
-Current integration tests:
-- `test_create_did`
-- `test_create_and_resolve_did`
-
-## Common Commands
-
-Format:
-
-```bash
-cargo fmt --all
-```
-
-Lint:
-
-```bash
-cargo clippy --workspace --all-targets --all-features
-```
-
-Check without building artifacts:
+Run local checks:
 
 ```bash
 cargo check --workspace
+cargo fmt --all
+cargo clippy --workspace --all-targets --all-features
 ```
 
-## Minimal Flow (Programmatic)
+## Quick Start (Create + Resolve)
 
-Typical DID lifecycle in this SDK:
+```rust
+use hiero_did_core::did::Network;
+use hiero_did_registrar::create::create_did;
+use hiero_did_resolver::{DidDocumentBuilder, MirrorNodeClient};
+use hiero_sdk::{AccountId, Client, PrivateKey};
+use std::str::FromStr;
 
-1. Create DID with `hiero_did_registrar::create::create_did`.
-2. Wait briefly for mirror-node consistency.
-3. Fetch topic messages via `hiero_did_resolver::MirrorNodeClient`.
-4. Build DID document via `hiero_did_resolver::DidDocumentBuilder`.
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let account_id = AccountId::from_str("0.0.12345")?;
+    let operator_key = PrivateKey::from_str_der("<DER_PRIVATE_KEY>")?;
 
-The integration test `registrar/tests/integration_test.rs` is the best end-to-end reference for this flow.
+    let client = Client::for_testnet();
+    client.set_operator(account_id, operator_key);
 
-## Project Layout
+    let created = create_did(&client, Network::Testnet, None).await?;
 
-```text
-.
-├── Cargo.toml
-├── core/
-├── method/
-├── messages/
-├── hcs/
-├── signer/
-├── registrar/
-│   └── tests/integration_test.rs
-└── resolver/
+    // Mirror node is eventually consistent; wait briefly before resolving.
+    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+
+    let mirror = MirrorNodeClient::for_testnet();
+    let messages = mirror.get_topic_messages(&created.did.topic_id).await?;
+    let resolution = DidDocumentBuilder::from(messages)
+        .resolve(&created.did)
+        .await?;
+
+    println!("Created DID: {}", created.did);
+    println!("Resolved DID: {}", resolution.did_document.id);
+    Ok(())
+}
+```
+
+## Using The Umbrella SDK Crate
+
+If you depend on `hiero-did-sdk`, use re-exported modules:
+
+```rust
+use hiero_did_sdk::{core, registrar, resolver};
 ```
 
 ## Troubleshooting
 
 - `HEDERA_ACCOUNT_ID not set` / `HEDERA_PRIVATE_KEY not set`
-  - Ensure `.env` exists and contains both variables.
-
+  - Ensure `.env` exists and both values are present.
 - `Invalid private key`
-  - Verify key is DER-encoded and matches `PrivateKey::from_str_der` expectations.
-
-- `grpc: Status { code: Unavailable, message: "tcp open error" ... }`
-  - Usually outbound network restrictions or blocked testnet connectivity.
-
-- `No messages found on topic`
-  - Mirror node can lag briefly; rerun after a short wait.
+  - Use DER-encoded private key for `PrivateKey::from_str_der`.
+- `grpc: Status { code: Unavailable, ... }`
+  - Usually outbound network restrictions.
+- `DID document not found`
+  - Mirror node may still be catching up after creation; retry after a short wait.

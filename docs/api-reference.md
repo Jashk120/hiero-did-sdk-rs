@@ -1,36 +1,19 @@
 # API Reference
 
-This document summarizes the public API exposed by each crate in this workspace.
+Public API summary across workspace crates.
 
 ## `hiero-did-core`
 
-Shared data model, key utilities, DID parsing model, and error type.
+Shared data model, DID types, errors, and key utilities.
 
-### DID types
+### DID and network types
 
-- `Network`: `Mainnet | Testnet`
-  - parse with `"mainnet".parse::<Network>()`
-- `HederaDid`
+- `did::Network`: `Mainnet | Testnet`
+- `did::HederaDid`
   - `HederaDid::new(network, base58_key, topic_id)`
   - `to_did_string()`
   - `root_key_id()`
-  - `Display` and `FromStr` implemented
-
-Example:
-
-```rust
-use hiero_did_core::did::{HederaDid, Network};
-
-let did = HederaDid::new(
-    Network::Testnet,
-    "BASE58_PUBKEY".to_string(),
-    "0.0.12345".to_string(),
-);
-
-let did_string = did.to_string();
-let parsed: HederaDid = did_string.parse()?;
-assert_eq!(did, parsed);
-```
+  - `Display` and `FromStr`
 
 ### Key utility
 
@@ -44,18 +27,16 @@ assert_eq!(did, parsed);
 ### DID document models
 
 - `DIDDocument`
-- `VerificationMethod`
+- `VerificationMethod` (+ Base58/Multibase variants)
 - `Service`
 - `DIDResolution`
 - `DIDDocumentMetadata`
 - `DIDResolutionMetadata`
 - `KeyCapabilityMethod`
 
-These are serde-serializable and intended for DID document building and resolution output.
+### Error type
 
-### Errors
-
-- `DIDError` variants:
+- `DIDError`
   - `InvalidDid`
   - `InvalidArgument`
   - `InvalidSignature`
@@ -66,27 +47,15 @@ These are serde-serializable and intended for DID document building and resoluti
 
 ## `hiero-did-method`
 
-Validation and parsing helpers.
+DID parser and validators.
 
 - `parse_did(did: &str) -> Result<HederaDid, DIDError>`
 - `is_hedera_did(s: &str) -> bool`
 - `is_topic_id(s: &str) -> bool`
 
-Example:
-
-```rust
-use hiero_did_method::{is_hedera_did, parse_did};
-
-let s = "did:hedera:testnet:abc_0.0.123";
-if is_hedera_did(s) {
-    let did = parse_did(s)?;
-    println!("{}", did.topic_id);
-}
-```
-
 ## `hiero-did-messages`
 
-Message/envelope/event types for DID operations over HCS.
+HCS envelope and DID owner event payload helpers.
 
 ### Types
 
@@ -101,48 +70,39 @@ Message/envelope/event types for DID operations over HCS.
 - `message_bytes() -> Result<Vec<u8>, DIDError>`
 - `to_payload(signature: &[u8]) -> Result<String, DIDError>`
 
-Example:
-
-```rust
-use hiero_did_messages::DIDOwnerMessage;
-
-let msg = DIDOwnerMessage::new(did, public_key_bytes, None);
-let bytes_to_sign = msg.message_bytes()?;
-let payload_json = msg.to_payload(&signature_bytes)?;
-```
-
 ## `hiero-did-signer`
 
-Internal Ed25519 sign/verify helpers.
-
-### Signer
+Ed25519 sign/verify helpers.
 
 - `InternalSigner::from_bytes(&[u8; 32]) -> Result<Self, DIDError>`
 - `InternalSigner::from_raw_bytes(&[u8]) -> Result<Self, DIDError>`
 - `sign(message: &[u8]) -> Vec<u8>`
 - `verifying_key_bytes() -> Vec<u8>`
 
-### Verifier
-
 - `InternalVerifier::from_bytes(&[u8]) -> Result<Self, DIDError>`
 - `verify(message: &[u8], signature: &[u8]) -> Result<bool, DIDError>`
 
 ## `hiero-did-hcs`
 
-Hedera client wrappers and topic operations.
+Hedera client and topic helpers.
 
 ### Client helper
 
-- `HcsClient::for_testnet()`
-- `HcsClient::for_mainnet()`
+- `HcsClient::for_testnet() -> HcsClient`
+- `HcsClient::for_mainnet() -> HcsClient`
 - `set_operator(account_id, private_key)`
-- `for_testnet_with_operator(account_id, private_key) -> Result<Self, DIDError>`
+- `for_testnet_with_operator(account_id, private_key) -> Result<HcsClient, DIDError>`
 
 ### Topic helper
 
 - `HcsTopic::create(client) -> Result<TopicId, DIDError>`
 - `HcsTopic::create_with_memo(client, memo) -> Result<TopicId, DIDError>`
 - `HcsTopic::submit(client, topic_id, message) -> Result<SubmitMessageResult, DIDError>`
+
+`SubmitMessageResult` fields:
+
+- `topic_id: String`
+- `sequence_number: Option<u64>`
 
 ## `hiero-did-registrar`
 
@@ -151,35 +111,32 @@ High-level DID creation.
 - `create::create_did(client, network, controller) -> Result<CreateDIDResult, DIDError>`
 - `CreateDIDResult { did, private_key_bytes, public_key_bytes }`
 
-Use this as the primary entrypoint for creation workflows.
-
-See `create-did.md` for detailed creation guidance.
-
 ## `hiero-did-resolver`
 
-Mirror node retrieval and DID document reconstruction.
+Mirror node retrieval and DID resolution.
 
-### Mirror node client
+### Mirror client
 
-- `MirrorNodeClient::for_testnet()`
-- `MirrorNodeClient::for_mainnet()`
-- `get_topic_messages(topic_id) -> Result<Vec<String>, DIDError>`
+- `MirrorNodeClient::for_testnet() -> MirrorNodeClient`
+- `MirrorNodeClient::for_mainnet() -> MirrorNodeClient`
+- `get_topic_messages(topic_id: &str) -> Result<Vec<String>, DIDError>`
 
 ### DID document builder
 
-- `DidDocumentBuilder::from(messages: Vec<String>) -> Self`
-- `resolve(&self, did: &HederaDid) -> Result<DIDResolution, DIDError>`
+- `DidDocumentBuilder::from(messages: Vec<String>) -> DidDocumentBuilder`
+- `resolve(&self, did: &HederaDid) -> Result<DIDResolution, DIDError>` (async)
 
-Example:
+## `hiero-did-sdk`
 
-```rust
-use hiero_did_resolver::{DidDocumentBuilder, MirrorNodeClient};
+Umbrella crate that re-exports all workspace crates:
 
-let mirror = MirrorNodeClient::for_testnet();
-let messages = mirror.get_topic_messages("0.0.12345").await?;
-let resolution = DidDocumentBuilder::from(messages).resolve(&did).await?;
-println!("{}", resolution.did_document.id);
-```
+- `hiero_did_sdk::core`
+- `hiero_did_sdk::method`
+- `hiero_did_sdk::messages`
+- `hiero_did_sdk::signer`
+- `hiero_did_sdk::hcs`
+- `hiero_did_sdk::registrar`
+- `hiero_did_sdk::resolver`
 
 ## End-to-End Example
 

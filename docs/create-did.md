@@ -1,17 +1,6 @@
 # Create DID Guide
 
-This guide covers DID creation flows only.
-
-## What `create_did` Does
-
-`hiero_did_registrar::create::create_did` performs:
-
-1. Generate a new Ed25519 keypair for the DID.
-2. Create a new Hedera Consensus Service topic.
-3. Construct a DID owner event payload.
-4. Sign the payload with the new private key.
-5. Submit the signed payload to the created topic.
-6. Return DID + raw key bytes.
+This guide covers DID creation with `hiero-did-registrar`.
 
 ## API
 
@@ -25,13 +14,20 @@ pub async fn create_did(
 
 Return type:
 
-- `did`: constructed `HederaDid`
-- `private_key_bytes`: 32-byte Ed25519 private key (raw)
-- `public_key_bytes`: 32-byte Ed25519 public key (raw)
+- `did`: created `HederaDid`
+- `private_key_bytes`: raw 32-byte Ed25519 private key
+- `public_key_bytes`: raw 32-byte Ed25519 public key
 
-## Creation Path 1 (Recommended): High-level Registrar API
+## What `create_did` Does
 
-Use this when you want one-call DID creation.
+1. Generates a new Ed25519 keypair.
+2. Creates a new HCS topic.
+3. Builds a `did:hedera` from network + public key + topic ID.
+4. Builds and signs a DID owner message.
+5. Submits signed payload to the topic.
+6. Returns DID + key bytes.
+
+## High-Level Usage (Recommended)
 
 ```rust
 use hiero_did_core::did::Network;
@@ -51,57 +47,45 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("DID: {}", created.did);
     println!("Topic ID: {}", created.did.topic_id);
-    println!("Public key bytes: {}", created.public_key_bytes.len());
+    println!("Public key len: {}", created.public_key_bytes.len());
 
     Ok(())
 }
 ```
 
-## Creation Path 2: High-level With Explicit Controller
+## Controller Behavior
 
-If you want the controller field in DID owner event set to a custom value:
+- If `controller` is `Some(value)`, that value is used as controller in owner event data.
+- If `controller` is `None`, controller defaults to the DID itself.
 
-```rust
-let controller = Some("did:hedera:testnet:...".to_string());
-let created = create_did(&client, Network::Testnet, controller).await?;
-```
+## Manual Building Blocks (Advanced)
 
-If `controller` is `None`, the SDK uses the created DID itself as controller.
+For custom orchestration:
 
-## Creation Path 3: Manual/Step-by-step Building Blocks
+1. `hiero_did_hcs::HcsTopic::create`
+2. `hiero_did_core::did::HederaDid::new`
+3. `hiero_did_messages::DIDOwnerMessage::new`
+4. `message_bytes()` + `hiero_did_signer::InternalSigner::sign`
+5. `to_payload()`
+6. `hiero_did_hcs::HcsTopic::submit`
 
-Use this if you need custom creation orchestration.
-
-1. Create topic using `hiero_did_hcs::HcsTopic::create`.
-2. Build your DID with `HederaDid::new`.
-3. Build owner message with `DIDOwnerMessage::new`.
-4. Get message bytes using `message_bytes()`.
-5. Sign using `InternalSigner`.
-6. Serialize envelope via `to_payload()`.
-7. Submit payload via `HcsTopic::submit`.
-
-This manual flow gives maximum control, but `create_did` already implements it safely.
+Use this only if you need full control over creation flow.
 
 ## Security Notes
 
-- `private_key_bytes` is raw private key material. Persist securely.
-- Do not log private keys.
-- Consider encrypted at-rest storage for returned key bytes.
+- `private_key_bytes` is sensitive secret material.
+- Do not log private key bytes.
+- Store keys encrypted at rest with access controls.
 
-## Errors You May See
+## Typical Errors
 
-All return `DIDError` variants:
+- `InternalError`: topic create/submit or network failures.
+- `SerializationError`: message/envelope serialization failures.
+- `InvalidArgument`: malformed key bytes or invalid inputs.
 
-- `InternalError`: Hedera topic create/submit failure.
-- `SerializationError`: payload serialization failure.
-- `InvalidArgument`: malformed key bytes, invalid inputs.
+## Next Step: Resolve DID
 
-## After Creation
+After creation, wait briefly for mirror-node consistency, then resolve with:
 
-To resolve the created DID:
-
-1. Wait for mirror-node propagation.
-2. Use `MirrorNodeClient::get_topic_messages`.
-3. Use `DidDocumentBuilder::from(messages).resolve(&did)`.
-
-See `docs/api-reference.md` for full resolver usage.
+- `MirrorNodeClient::get_topic_messages`
+- `DidDocumentBuilder::from(messages).resolve(&did)`

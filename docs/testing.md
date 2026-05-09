@@ -1,23 +1,21 @@
 # Testing Guide
 
-This project has two practical test modes:
+This project has two test modes:
 
-- Local/offline checks (no Hedera network calls).
-- Hedera integration tests (requires network + credentials).
+- Local/offline checks.
+- Hedera integration tests (network + credentials required).
 
 ## Prerequisites
 
 - Rust + Cargo installed.
-- For integration tests:
-  - outbound network access
-  - `.env` file in repo root with:
+- For integration tests, set `.env` in repo root:
 
 ```env
 HEDERA_ACCOUNT_ID=0.0.xxxxx
 HEDERA_PRIVATE_KEY=302e020100300506032b657004220420...
 ```
 
-`HEDERA_PRIVATE_KEY` must be DER format because tests parse it via `PrivateKey::from_str_der`.
+`HEDERA_PRIVATE_KEY` must be DER format (`PrivateKey::from_str_der`).
 
 ## Run All Tests
 
@@ -25,32 +23,9 @@ HEDERA_PRIVATE_KEY=302e020100300506032b657004220420...
 cargo test --workspace
 ```
 
-Behavior:
-- Runs unit tests for all workspace crates.
-- Also runs `registrar/tests/integration_test.rs`.
+This includes `registrar/tests/integration_test.rs`.
 
-## Run Local-Only Tests
-
-Skip integration tests by excluding the registrar crate:
-
-```bash
-cargo test --workspace --exclude hiero-did-registrar
-```
-
-Useful for CI environments without Hedera access.
-
-## Run Integration Tests Only
-
-```bash
-cargo test -p hiero-did-registrar --test integration_test -- --nocapture
-```
-
-Current integration tests:
-
-- `test_create_did`: validates end-to-end DID creation.
-- `test_create_and_resolve_did`: creates DID then resolves from mirror node.
-
-## Useful Dev Checks
+## Run Local-Only Checks
 
 ```bash
 cargo check --workspace
@@ -58,29 +33,24 @@ cargo fmt --all
 cargo clippy --workspace --all-targets --all-features
 ```
 
+## Run Integration Tests Only
+
+```bash
+cargo test -p hiero-did-registrar --test integration_test -- --nocapture
+```
+
+Current integration coverage:
+
+- `test_create_did`
+- `test_create_and_resolve_did`
+
 ## Common Failures
 
-### Missing credentials
-
-- `HEDERA_ACCOUNT_ID not set`
-- `HEDERA_PRIVATE_KEY not set`
-
-Fix: ensure `.env` exists and has both keys.
-
-### Invalid key format
-
+- `HEDERA_ACCOUNT_ID not set` / `HEDERA_PRIVATE_KEY not set`
+  - `.env` missing or incomplete.
 - `Invalid private key`
-
-Fix: provide DER-encoded private key string.
-
-### Network blocked or restricted
-
-- `grpc: Status { code: Unavailable, message: "tcp open error" ... }`
-
-Fix: allow outbound network to Hedera endpoints.
-
-### Mirror-node eventual consistency
-
-- resolve test may fail if messages are not visible yet.
-
-Fix: rerun; mirror-node lag can be transient.
+  - Key is not DER-encoded.
+- `grpc: Status { code: Unavailable, ... }`
+  - Outbound network blocked or unstable.
+- `DID document not found` during resolve flow
+  - Mirror node lag; wait and retry.
