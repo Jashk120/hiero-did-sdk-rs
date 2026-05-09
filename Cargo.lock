@@ -916,6 +916,8 @@ dependencies = [
  "hiero-did-resolver",
  "hiero-did-signer",
  "hiero-sdk",
+ "reqwest",
+ "serde_json",
  "thiserror",
  "tokio",
 ]

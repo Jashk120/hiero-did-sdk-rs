@@ -6,6 +6,9 @@ use hiero_sdk::{AccountId, Client, PrivateKey};
 use std::env;
 use std::str::FromStr;
 
+#[cfg(feature = "debug-mirror")]
+use serde_json::Value;
+
 fn setup_client() -> Client {
     dotenv().ok();
 
@@ -44,17 +47,48 @@ async fn test_create_did() {
 async fn test_create_and_resolve_did() {
     let client = setup_client();
 
-    // create
     let result = create_did(&client, Network::Testnet, None)
         .await
         .expect("Failed to create DID");
 
     println!("Created DID: {}", result.did);
 
-    // wait for mirror node to catch up
     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 
-    // resolve
+    #[cfg(feature = "debug-mirror")]
+    {
+        let debug_url = format!(
+            "https://testnet.mirrornode.hedera.com/api/v1/topics/{}/messages?order=asc&limit=100",
+            result.did.topic_id
+        );
+        println!("Mirror URL: {}", debug_url);
+        let debug_response = reqwest::get(&debug_url)
+            .await
+            .expect("Failed to call mirror debug URL");
+        println!("Mirror HTTP status: {}", debug_response.status());
+        let debug_text = debug_response
+            .text()
+            .await
+            .expect("Failed to read mirror debug response body");
+        println!("Mirror raw JSON bytes: {}", debug_text.len());
+        println!("Mirror raw JSON preview: {}", &debug_text.chars().take(1200).collect::<String>());
+
+        let debug_json: Value = serde_json::from_str(&debug_text)
+            .expect("Failed to parse mirror debug JSON");
+        let top_keys = debug_json
+            .as_object()
+            .map(|m| m.keys().cloned().collect::<Vec<_>>())
+            .unwrap_or_default();
+        println!("Mirror top-level keys: {:?}", top_keys);
+        let first_msg = debug_json
+            .get("messages")
+            .and_then(|v| v.as_array())
+            .and_then(|arr| arr.first())
+            .cloned()
+            .unwrap_or(Value::Null);
+        println!("Mirror first message shape: {}", first_msg);
+    }
+
     let mirror = MirrorNodeClient::for_testnet();
     let messages = mirror
         .get_topic_messages(&result.did.topic_id)

@@ -61,6 +61,8 @@ pub enum KeyCapabilityMethod {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DIDDocument {
+    #[serde(rename = "@context")]
+    pub context: Vec<String>,
     pub id: String,
     pub controller: String,
     #[serde(rename = "verificationMethod")]

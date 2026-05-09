@@ -138,6 +138,7 @@ impl DidDocumentBuilder {
         }
 
         let did_document = DIDDocument {
+            context: vec!["https://www.w3.org/ns/did/v1".to_string()],
             id: did_string.clone(),
             controller: controller.unwrap_or_else(|| did_string.clone()),
             verification_method: verification_methods.into_values().collect(),
@@ -232,6 +233,10 @@ mod tests {
             .expect("must resolve");
 
         assert_eq!(resolution.did_document.id, did.to_string());
+        assert_eq!(
+            resolution.did_document.context.first().map(String::as_str),
+            Some("https://www.w3.org/ns/did/v1")
+        );
         assert_eq!(resolution.did_document_metadata.deactivated, Some(false));
         assert!(!resolution.did_document.verification_method.is_empty());
     }

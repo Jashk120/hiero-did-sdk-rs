@@ -20,3 +20,9 @@ thiserror = { workspace = true }
 [dev-dependencies]
 dotenvy = "0.15.7"
 hiero-did-resolver = { version = "0.1.0", path = "../resolver" }
+reqwest = { workspace = true }
+serde_json = { workspace = true }
+
+# registrar/Cargo.toml
+[features]
+debug-mirror = []
