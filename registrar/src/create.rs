@@ -2,7 +2,9 @@ use hiero_did_core::{DIDError, HederaDid, KeysUtility};
 use hiero_did_core::did::Network;
 use hiero_did_messages::DIDOwnerMessage;
 use hiero_did_signer::InternalSigner;
-use hiero_sdk::{Client, PrivateKey, TopicCreateTransaction, TopicMessageSubmitTransaction};
+use hiero_sdk::{Client, PrivateKey};
+use hiero_did_hcs::HcsTopic;
+
 
 pub struct CreateDIDResult {
     pub did: HederaDid,
@@ -32,18 +34,7 @@ pub async fn create_did(
     let public_key_bytes = hiero_public_key.to_bytes_raw();
 
     // 2. Create HCS topic — this topic ID becomes part of the DID string
-    let receipt = TopicCreateTransaction::new()
-        .execute(client)
-        .await
-        .map_err(|e| DIDError::InternalError(format!("Failed to create HCS topic: {}", e)))?
-        .get_receipt(client)
-        .await
-        .map_err(|e| DIDError::InternalError(format!("Failed to get topic receipt: {}", e)))?;
-
-    let topic_id = receipt
-        .topic_id
-        .ok_or_else(|| DIDError::InternalError("No topic ID in receipt".into()))?;
-
+    let topic_id = HcsTopic::create(client).await?;
     let topic_id_str = format!("{}", topic_id);
 
     // 3. Build DID now that we have the topic ID
@@ -66,15 +57,7 @@ pub async fn create_did(
     let payload = message.to_payload(&signature)?;
 
     // 7. Submit to HCS
-    TopicMessageSubmitTransaction::new()
-        .topic_id(topic_id)
-        .message(payload)
-        .execute(client)
-        .await
-        .map_err(|e| DIDError::InternalError(format!("Failed to submit DID message: {}", e)))?
-        .get_receipt(client)
-        .await
-        .map_err(|e| DIDError::InternalError(format!("Failed to get message receipt: {}", e)))?;
+    HcsTopic::submit(client, topic_id, payload).await?;
 
     Ok(CreateDIDResult {
         did,
