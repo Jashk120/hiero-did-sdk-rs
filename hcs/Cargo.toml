@@ -1,0 +1,18 @@
+[package]
+name = "hiero-did-hcs"
+version = "0.1.0"
+edition = "2024"
+repository = "https://github.com/Jashk120/hiero-did-sdk-rs"
+description = "Hedera Consensus Service client and topic helpers for did:hedera"
+license = "Apache-2.0"
+keywords = ["did", "hedera", "hcs", "sdk"]
+categories = ["api-bindings", "cryptography"]
+
+[dependencies]
+hiero-did-core = { version = "0.1.0", path = "../core" }
+hiero-did-messages = { version = "0.1.0", path = "../messages" }
+hiero-sdk = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+thiserror = { workspace = true }

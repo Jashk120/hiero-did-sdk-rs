@@ -1,0 +1,14 @@
+[package]
+name = "hiero-did-method"
+version = "0.1.0"
+edition = "2024"
+repository = "https://github.com/Jashk120/hiero-did-sdk-rs"
+description = "Parser and validators for did:hedera identifiers"
+license = "Apache-2.0"
+keywords = ["did", "hedera", "parser", "validator"]
+categories = ["parser-implementations", "cryptography"]
+
+[dependencies]
+hiero-did-core = { version = "0.1.0", path = "../core" }
+bs58 = { workspace = true }
+thiserror = { workspace = true }

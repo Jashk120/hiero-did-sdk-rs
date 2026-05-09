@@ -1,0 +1,22 @@
+[package]
+name = "hiero-did-registrar"
+version = "0.1.0"
+edition = "2024"
+repository = "https://github.com/Jashk120/hiero-did-sdk-rs"
+description = "High-level DID creation flow for did:hedera on Hedera"
+license = "Apache-2.0"
+keywords = ["did", "hedera", "registrar", "hcs"]
+categories = ["cryptography", "api-bindings"]
+
+[dependencies]
+hiero-did-core = { version = "0.1.0", path = "../core" }
+hiero-did-messages = { version = "0.1.0", path = "../messages" }
+hiero-did-hcs = { version = "0.1.0", path = "../hcs" }
+hiero-did-signer = { version = "0.1.0", path = "../signer" }
+hiero-sdk = { workspace = true }
+tokio = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+dotenvy = "0.15.7"
+hiero-did-resolver = { version = "0.1.0", path = "../resolver" }

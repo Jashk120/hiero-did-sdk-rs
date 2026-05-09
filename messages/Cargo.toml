@@ -1,0 +1,17 @@
+[package]
+name = "hiero-did-messages"
+version = "0.1.0"
+edition = "2024"
+repository = "https://github.com/Jashk120/hiero-did-sdk-rs"
+description = "HCS message and event types for did:hedera operations"
+license = "Apache-2.0"
+keywords = ["did", "hedera", "hcs", "messages"]
+categories = ["cryptography", "encoding"]
+
+[dependencies]
+hiero-did-core = { version = "0.1.0", path = "../core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+base64 = { workspace = true }
+thiserror = { workspace = true }
+chrono = { version = "0.4.44", features = ["serde"] }
