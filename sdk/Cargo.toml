@@ -1,0 +1,17 @@
+[package]
+name = "hiero-did-sdk"
+version = "0.1.0"
+edition = "2024"
+description = "Rust SDK for did:hedera — create, resolve, and manage Hedera DIDs"
+license = "Apache-2.0"
+repository = "https://github.com/Jashk120/hiero-did-sdk-rs"
+readme = "../README.md"
+
+[dependencies]
+hiero-did-core = { version = "0.1.0" }
+hiero-did-method = { version = "0.1.0" }
+hiero-did-messages = { version = "0.1.0" }
+hiero-did-signer = { version = "0.1.0" }
+hiero-did-hcs = { version = "0.1.0" }
+hiero-did-resolver = { version = "0.1.0" }
+hiero-did-registrar = { version = "0.1.0" }

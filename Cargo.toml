@@ -6,7 +6,7 @@ members = [
     "method",
     "registrar",
     "resolver",
-    "signer",
+    "signer", "sdk",
 ]
 resolver = "2"
 

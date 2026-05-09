@@ -872,11 +872,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "hiero-did-core"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c0f394a01cbd41ee71ed72cb083c4b56ee9543b28ed1af675ee23fcbbdf6958f"
+dependencies = [
+ "base64",
+ "bs58",
+ "ed25519-dalek",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "hiero-did-hcs"
 version = "0.1.0"
 dependencies = [
- "hiero-did-core",
- "hiero-did-messages",
+ "hiero-did-core 0.1.0",
+ "hiero-did-messages 0.1.0",
+ "hiero-sdk",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "hiero-did-hcs"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bd5785ff26d7084c124780c4ea599038e40beeae8888d121dd769684477cf88b"
+dependencies = [
+ "hiero-did-core 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hiero-did-messages 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "hiero-sdk",
  "serde",
  "serde_json",
@@ -890,7 +919,21 @@ version = "0.1.0"
 dependencies = [
  "base64",
  "chrono",
- "hiero-did-core",
+ "hiero-did-core 0.1.0",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "hiero-did-messages"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "471726183c8ba59edf7767aba4d16aaa1ad65136419ed0434ba0626f0ebc68dd"
+dependencies = [
+ "base64",
+ "chrono",
+ "hiero-did-core 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "serde_json",
  "thiserror",
@@ -901,7 +944,18 @@ name = "hiero-did-method"
 version = "0.1.0"
 dependencies = [
  "bs58",
- "hiero-did-core",
+ "hiero-did-core 0.1.0",
+ "thiserror",
+]
+
+[[package]]
+name = "hiero-did-method"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f1d12daa9e514eb4e300cc2fc9073ee3e9bd3f7676452441f3670f10e3525bd1"
+dependencies = [
+ "bs58",
+ "hiero-did-core 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "thiserror",
 ]
 
@@ -910,14 +964,29 @@ name = "hiero-did-registrar"
 version = "0.1.0"
 dependencies = [
  "dotenvy",
- "hiero-did-core",
- "hiero-did-hcs",
- "hiero-did-messages",
- "hiero-did-resolver",
- "hiero-did-signer",
+ "hiero-did-core 0.1.0",
+ "hiero-did-hcs 0.1.0",
+ "hiero-did-messages 0.1.0",
+ "hiero-did-resolver 0.1.0",
+ "hiero-did-signer 0.1.0",
  "hiero-sdk",
  "reqwest",
  "serde_json",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "hiero-did-registrar"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0bea66a144d895ce1decb6f63432e8b7e3228dd15b573625c21fcc800ca8d2e5"
+dependencies = [
+ "hiero-did-core 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hiero-did-hcs 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hiero-did-messages 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hiero-did-signer 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hiero-sdk",
  "thiserror",
  "tokio",
 ]
@@ -928,9 +997,9 @@ version = "0.1.0"
 dependencies = [
  "base64",
  "dotenvy",
- "hiero-did-core",
- "hiero-did-messages",
- "hiero-did-signer",
+ "hiero-did-core 0.1.0",
+ "hiero-did-messages 0.1.0",
+ "hiero-did-signer 0.1.0",
  "reqwest",
  "serde",
  "serde_json",
@@ -939,11 +1008,52 @@ dependencies = [
 ]
 
 [[package]]
+name = "hiero-did-resolver"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05c4baddf750813b00a8ded11755974a99a58dc2fec44a138c26f7d6d615392d"
+dependencies = [
+ "base64",
+ "hiero-did-core 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hiero-did-messages 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hiero-did-signer 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "hiero-did-sdk"
+version = "0.1.0"
+dependencies = [
+ "hiero-did-core 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hiero-did-hcs 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hiero-did-messages 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hiero-did-method 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hiero-did-registrar 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hiero-did-resolver 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hiero-did-signer 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "hiero-did-signer"
 version = "0.1.0"
 dependencies = [
  "ed25519-dalek",
- "hiero-did-core",
+ "hiero-did-core 0.1.0",
+ "thiserror",
+]
+
+[[package]]
+name = "hiero-did-signer"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08f07961a3fa0e17282d5a8fec35fb9c72bca5bc660fb82c4289c7bf84a1585f"
+dependencies = [
+ "ed25519-dalek",
+ "hiero-did-core 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "thiserror",
 ]
 
