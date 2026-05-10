@@ -2,6 +2,7 @@ pub mod error;
 pub mod did;
 pub mod document;
 pub mod keys;
+pub mod signer;
 
 pub use error::DIDError;
 pub use did::HederaDid;
@@ -17,3 +18,4 @@ pub use document::{
     KeyCapabilityMethod,
 };
 pub use keys::KeysUtility;
+pub use signer::Signer;

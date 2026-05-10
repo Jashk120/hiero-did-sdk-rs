@@ -9,10 +9,21 @@ keywords = ["did", "hedera", "hcs", "sdk"]
 categories = ["api-bindings", "cryptography"]
 
 [dependencies]
+hiero-did-client = { version = "0.1.0", path = "../client" }
 hiero-did-core = { version = "0.1.0", path = "../core" }
-hiero-did-messages = { version = "0.1.0", path = "../messages" }
 hiero-sdk = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["time"] }
 thiserror = { workspace = true }
+futures-util = { workspace = true }
+zstd = { workspace = true }
+sha2 = { workspace = true }
+moka = { workspace = true }
+hex = { workspace = true }
+time = { workspace = true, features = ["serde"] }
+base64 = { workspace = true }
+
+[dev-dependencies]
+dotenvy = "0.15"
+serial_test = "3"

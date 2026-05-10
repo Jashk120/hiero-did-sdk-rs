@@ -1,0 +1,20 @@
+[package]
+name = "hiero-did-client"
+version = "0.1.0"
+edition = "2024"
+repository = "https://github.com/Jashk120/hiero-did-sdk-rs"
+description = "Hedera client management for did:hedera SDK"
+license = "Apache-2.0"
+keywords = ["did", "hedera", "client", "sdk"]
+categories = ["api-bindings"]
+
+[dependencies]
+hiero-did-core = { version = "0.1.0", path = "../core" }
+hiero-sdk = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+rust_decimal = "1"
+
+[dev-dependencies]
+dotenvy = "0.15"

@@ -1,5 +1,5 @@
-use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
-use hiero_did_core::DIDError;
+use ed25519_dalek::{Signature, Signer as DalekSigner, SigningKey, Verifier, VerifyingKey};
+use hiero_did_core::{DIDError, Signer};
 
 pub struct InternalSigner {
     signing_key: SigningKey,
@@ -25,6 +25,16 @@ impl InternalSigner {
 
     pub fn verifying_key_bytes(&self) -> Vec<u8> {
         self.signing_key.verifying_key().to_bytes().to_vec()
+    }
+}
+
+impl Signer for InternalSigner {
+    fn public_key_bytes(&self) -> Vec<u8> {
+        self.verifying_key_bytes()
+    }
+
+    fn sign_bytes(&self, message: &[u8]) -> Result<Vec<u8>, DIDError> {
+        Ok(self.sign(message))
     }
 }
 
@@ -55,15 +65,16 @@ impl InternalVerifier {
 #[cfg(test)]
 mod tests {
     use super::{InternalSigner, InternalVerifier};
+    use hiero_did_core::Signer;
 
     #[test]
     fn sign_and_verify_happy_path() {
         let key = [7u8; 32];
         let signer = InternalSigner::from_bytes(&key).expect("valid signer");
-        let verifier = InternalVerifier::from_bytes(&signer.verifying_key_bytes())
-            .expect("valid verifier");
+        let verifier =
+            InternalVerifier::from_bytes(&signer.verifying_key_bytes()).expect("valid verifier");
         let msg = b"hello-did";
-        let sig = signer.sign(msg);
+        let sig = signer.sign_bytes(msg).expect("sign must succeed");
         assert!(verifier.verify(msg, &sig).expect("verification must succeed"));
     }
 
@@ -71,9 +82,9 @@ mod tests {
     fn verify_fails_for_wrong_message() {
         let key = [9u8; 32];
         let signer = InternalSigner::from_bytes(&key).expect("valid signer");
-        let verifier = InternalVerifier::from_bytes(&signer.verifying_key_bytes())
-            .expect("valid verifier");
-        let sig = signer.sign(b"msg-a");
+        let verifier =
+            InternalVerifier::from_bytes(&signer.verifying_key_bytes()).expect("valid verifier");
+        let sig = signer.sign_bytes(b"msg-a").expect("sign must succeed");
         assert!(!verifier.verify(b"msg-b", &sig).expect("verification must run"));
     }
 
