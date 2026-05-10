@@ -1,6 +1,18 @@
 # hiero-did-sdk-rs
 
-Rust workspace for creating and resolving `did:hedera` identifiers over Hedera Consensus Service (HCS).
+Rust workspace for creating and resolving `did:hedera` identifiers, plus reusable Hedera client and HCS service layers.
+
+## Workspace Crates
+
+- `hiero-did-core`: canonical DID types, document models, errors, and key utilities.
+- `hiero-did-method`: parser/validator helpers for `did:hedera` and topic IDs.
+- `hiero-did-messages`: signed envelope + DID owner event payload models.
+- `hiero-did-signer`: internal Ed25519 sign/verify helpers.
+- `hiero-did-client`: configurable Hedera client service for single or multi-network setups.
+- `hiero-did-hcs`: topic/message/file helpers and higher-level HCS service with optional cache.
+- `hiero-did-registrar`: end-to-end DID creation flow.
+- `hiero-did-resolver`: mirror-node reader + DID document reconstruction.
+- `hiero-did-sdk`: umbrella crate that re-exports core DID crates and higher-level registrar/resolver/hcs modules.
 
 ## Documentation
 
@@ -8,17 +20,7 @@ Rust workspace for creating and resolving `did:hedera` identifiers over Hedera C
 - Create DID guide: [`docs/create-did.md`](docs/create-did.md)
 - API reference: [`docs/api-reference.md`](docs/api-reference.md)
 - Testing guide: [`docs/testing.md`](docs/testing.md)
-
-## Workspace Crates
-
-- `hiero-did-core`: DID types, DID document models, errors, and key utilities.
-- `hiero-did-method`: DID parsing and validation helpers.
-- `hiero-did-messages`: HCS message, envelope, and event models.
-- `hiero-did-signer`: internal Ed25519 sign/verify helpers.
-- `hiero-did-hcs`: Hedera client/topic helpers for HCS operations.
-- `hiero-did-registrar`: high-level DID creation workflow.
-- `hiero-did-resolver`: mirror-node fetch + DID document reconstruction.
-- `hiero-did-sdk`: umbrella crate that re-exports all crates above.
+- Architecture notes: [`ARCHITECTURE.md`](ARCHITECTURE.md)
 
 ## Prerequisites
 
@@ -27,14 +29,18 @@ Rust workspace for creating and resolving `did:hedera` identifiers over Hedera C
 - Outbound network access for integration tests
 - Hedera test account credentials for integration tests
 
-Optional `.env` for integration tests:
+Optional `.env` in repo root:
 
 ```env
 HEDERA_ACCOUNT_ID=0.0.xxxxx
 HEDERA_PRIVATE_KEY=302e020100300506032b657004220420...
+HEDERA_NETWORK=testnet
 ```
 
-`HEDERA_PRIVATE_KEY` must be DER format (`PrivateKey::from_str_der`).
+Notes:
+
+- `HEDERA_PRIVATE_KEY` is parsed by `hiero_sdk::PrivateKey::from_str` in `hiero-did-client` and by `PrivateKey::from_str_der` in registrar integration tests.
+- Keep the key format consistent with the tests you run.
 
 ## Build
 
@@ -50,10 +56,16 @@ Run all tests:
 cargo test --workspace
 ```
 
-Run integration tests only:
+Run registrar integration tests only:
 
 ```bash
 cargo test -p hiero-did-registrar --test integration_test -- --nocapture
+```
+
+Run HCS integration tests only:
+
+```bash
+cargo test -p hiero-did-hcs --test integration_hcs -- --nocapture
 ```
 
 Run local checks:
@@ -83,7 +95,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let created = create_did(&client, Network::Testnet, None).await?;
 
-    // Mirror node is eventually consistent; wait briefly before resolving.
+    // Mirror node is eventually consistent.
     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 
     let mirror = MirrorNodeClient::for_testnet();
@@ -98,21 +110,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-## Using The Umbrella SDK Crate
-
-If you depend on `hiero-did-sdk`, use re-exported modules:
+## Using the Umbrella Crate
 
 ```rust
-use hiero_did_sdk::{core, registrar, resolver};
+use hiero_did_sdk::{core, hcs, registrar, resolver};
 ```
 
 ## Troubleshooting
 
 - `HEDERA_ACCOUNT_ID not set` / `HEDERA_PRIVATE_KEY not set`
-  - Ensure `.env` exists and both values are present.
+  - Ensure `.env` exists and values are present.
 - `Invalid private key`
-  - Use DER-encoded private key for `PrivateKey::from_str_der`.
+  - Check whether your path expects DER (`from_str_der`) or standard SDK parse format (`from_str`).
 - `grpc: Status { code: Unavailable, ... }`
-  - Usually outbound network restrictions.
+  - Usually outbound network restrictions or unstable connectivity.
 - `DID document not found`
-  - Mirror node may still be catching up after creation; retry after a short wait.
+  - Mirror node may still be catching up after creation; retry after a short delay.

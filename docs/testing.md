@@ -1,9 +1,6 @@
 # Testing Guide
 
-This project has two test modes:
-
-- Local/offline checks.
-- Hedera integration tests (network + credentials required).
+This workspace has both local checks and networked integration tests.
 
 ## Prerequisites
 
@@ -13,9 +10,13 @@ This project has two test modes:
 ```env
 HEDERA_ACCOUNT_ID=0.0.xxxxx
 HEDERA_PRIVATE_KEY=302e020100300506032b657004220420...
+HEDERA_NETWORK=testnet
 ```
 
-`HEDERA_PRIVATE_KEY` must be DER format (`PrivateKey::from_str_der`).
+Notes:
+
+- Registrar integration tests parse `HEDERA_PRIVATE_KEY` with `PrivateKey::from_str_der`.
+- HCS/client integrations parse keys using `PrivateKey::from_str`.
 
 ## Run All Tests
 
@@ -23,9 +24,7 @@ HEDERA_PRIVATE_KEY=302e020100300506032b657004220420...
 cargo test --workspace
 ```
 
-This includes `registrar/tests/integration_test.rs`.
-
-## Run Local-Only Checks
+## Run Local Checks
 
 ```bash
 cargo check --workspace
@@ -33,24 +32,30 @@ cargo fmt --all
 cargo clippy --workspace --all-targets --all-features
 ```
 
-## Run Integration Tests Only
+## Run Integration Tests by Crate
 
 ```bash
+cargo test -p hiero-did-client --test client_service_integration -- --nocapture
+cargo test -p hiero-did-hcs --test integration_hcs -- --nocapture
 cargo test -p hiero-did-registrar --test integration_test -- --nocapture
 ```
 
-Current integration coverage:
+## Integration Coverage (Current)
 
-- `test_create_did`
-- `test_create_and_resolve_did`
+- `hiero-did-client`
+  - service initialization and network selection behavior.
+- `hiero-did-hcs`
+  - topic create/update/delete, message publish/read, file publish/resolve, cache + service paths.
+- `hiero-did-registrar`
+  - create DID and create+resolve flow.
 
 ## Common Failures
 
 - `HEDERA_ACCOUNT_ID not set` / `HEDERA_PRIVATE_KEY not set`
   - `.env` missing or incomplete.
 - `Invalid private key`
-  - Key is not DER-encoded.
+  - Key format does not match parser used by that test.
 - `grpc: Status { code: Unavailable, ... }`
   - Outbound network blocked or unstable.
 - `DID document not found` during resolve flow
-  - Mirror node lag; wait and retry.
+  - Mirror node lag; retry after a short wait.

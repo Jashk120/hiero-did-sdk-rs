@@ -12,7 +12,7 @@ pub async fn create_did(
 ) -> Result<CreateDIDResult, hiero_did_core::DIDError>
 ```
 
-Return type:
+`CreateDIDResult`:
 
 - `did`: created `HederaDid`
 - `private_key_bytes`: raw 32-byte Ed25519 private key
@@ -23,11 +23,12 @@ Return type:
 1. Generates a new Ed25519 keypair.
 2. Creates a new HCS topic.
 3. Builds a `did:hedera` from network + public key + topic ID.
-4. Builds and signs a DID owner message.
-5. Submits signed payload to the topic.
-6. Returns DID + key bytes.
+4. Builds a DID owner message.
+5. Signs the serialized `HcsMessage` bytes.
+6. Submits the signed envelope to the topic.
+7. Returns DID + key bytes.
 
-## High-Level Usage (Recommended)
+## Example
 
 ```rust
 use hiero_did_core::did::Network;
@@ -47,35 +48,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("DID: {}", created.did);
     println!("Topic ID: {}", created.did.topic_id);
-    println!("Public key len: {}", created.public_key_bytes.len());
-
     Ok(())
 }
 ```
 
 ## Controller Behavior
 
-- If `controller` is `Some(value)`, that value is used as controller in owner event data.
+- If `controller` is `Some(value)`, that value is used in owner event data.
 - If `controller` is `None`, controller defaults to the DID itself.
-
-## Manual Building Blocks (Advanced)
-
-For custom orchestration:
-
-1. `hiero_did_hcs::HcsTopic::create`
-2. `hiero_did_core::did::HederaDid::new`
-3. `hiero_did_messages::DIDOwnerMessage::new`
-4. `message_bytes()` + `hiero_did_signer::InternalSigner::sign`
-5. `to_payload()`
-6. `hiero_did_hcs::HcsTopic::submit`
-
-Use this only if you need full control over creation flow.
 
 ## Security Notes
 
-- `private_key_bytes` is sensitive secret material.
-- Do not log private key bytes.
-- Store keys encrypted at rest with access controls.
+- `private_key_bytes` is sensitive key material.
+- Do not log or persist it unencrypted.
+- Prefer dedicated key management for production workloads.
 
 ## Typical Errors
 
@@ -85,7 +71,7 @@ Use this only if you need full control over creation flow.
 
 ## Next Step: Resolve DID
 
-After creation, wait briefly for mirror-node consistency, then resolve with:
+After creation, wait for mirror-node consistency and resolve with:
 
 - `MirrorNodeClient::get_topic_messages`
 - `DidDocumentBuilder::from(messages).resolve(&did)`
