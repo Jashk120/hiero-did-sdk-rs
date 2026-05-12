@@ -8,8 +8,8 @@ members = [
     "resolver",
     "signer",
     "sdk",
-    "client"
-]
+    "client",
+    "anoncreds"]
 resolver = "2"
 
 [workspace.dependencies]

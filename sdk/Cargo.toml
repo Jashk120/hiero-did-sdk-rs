@@ -8,10 +8,17 @@ repository = "https://github.com/Jashk120/hiero-did-sdk-rs"
 readme = "../README.md"
 
 [dependencies]
-hiero-did-core = { version = "0.1.0" }
-hiero-did-method = { version = "0.1.0" }
-hiero-did-messages = { version = "0.1.0" }
-hiero-did-signer = { version = "0.1.0" }
-hiero-did-hcs = { version = "0.1.0" }
-hiero-did-resolver = { version = "0.1.0" }
-hiero-did-registrar = { version = "0.1.0" }
+hiero-did-anoncreds = { path = "../anoncreds" }
+hiero-did-client = { path = "../client" }
+hiero-did-core = { path = "../core" }
+hiero-did-hcs = { path = "../hcs" }
+hiero-did-method = { path = "../method" }
+hiero-did-messages = { path = "../messages" }
+hiero-did-registrar = { path = "../registrar" }
+hiero-did-resolver = { path = "../resolver" }
+hiero-did-signer = { path = "../signer" }
+
+[dev-dependencies]
+dotenvy = "0.15.7"
+hiero-sdk = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }

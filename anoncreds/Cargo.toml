@@ -1,0 +1,20 @@
+[package]
+name = "hiero-did-anoncreds"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+hiero-did-core = { path = "../core" }
+hiero-did-hcs = { path = "../hcs" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+zstd = { workspace = true }
+base64 = { workspace = true }
+time = { workspace = true }
+hiero-sdk = { workspace = true }
+
+[dev-dependencies]
+hiero-did-client = { path = "../client" }
+dotenvy = "0.15.7"
