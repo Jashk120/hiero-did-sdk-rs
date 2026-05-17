@@ -24,7 +24,7 @@ pub async fn create_did(
 2. Creates a new HCS topic.
 3. Builds a `did:hedera` from network + public key + topic ID.
 4. Builds a DID owner message.
-5. Signs the serialized `HcsMessage` bytes.
+5. Signs serialized `HcsMessage` bytes.
 6. Submits the signed envelope to the topic.
 7. Returns DID + key bytes.
 
@@ -68,6 +68,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 - `InternalError`: topic create/submit or network failures.
 - `SerializationError`: message/envelope serialization failures.
 - `InvalidArgument`: malformed key bytes or invalid inputs.
+
+## Related Write Operations
+
+`hiero-did-registrar` also provides:
+
+- `update::update_did(...)`
+- `deactivate::deactivate_did(...)`
+
+See [`api-reference.md`](./api-reference.md) for full write-operation types and options.
 
 ## Next Step: Resolve DID
 

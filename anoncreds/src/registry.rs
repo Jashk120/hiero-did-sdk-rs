@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use hiero_did_hcs::GetTopicMessagesProps;
 use crate::utils::{
     compute_status_list_diff, pack_revocation_entry, unpack_revocation_entry,
     RevocationRegistryEntry, RevocationRegistryEntryValue,
@@ -237,9 +236,11 @@ impl HederaAnonCredsRegistry {
         let rev_reg_def = rev_reg_def_with_metadata.rev_reg_def;
         let parsed = parse_anoncreds_identifier(rev_reg_def_id)?;
 
+        let selected_network = network_name.or(Some(parsed.network_name.as_str()));
+
         let messages = self.hcs_service
             .get_topic_messages(
-                Some(parsed.network_name.as_str()),
+                selected_network,
                 hiero_did_hcs::GetTopicMessagesProps {
                     topic_id: entries_topic_id.parse().map_err(|_| {
                         DIDError::InvalidArgument(format!("Invalid entries topic ID: {entries_topic_id}"))

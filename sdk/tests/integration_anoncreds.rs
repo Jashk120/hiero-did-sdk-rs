@@ -4,7 +4,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use dotenvy::from_filename;
+use dotenvy::{from_filename, from_filename_override};
 use hiero_did_sdk::{anoncreds, client, core, hcs};
 use hiero_sdk::PrivateKey;
 
@@ -24,7 +24,7 @@ struct Ctx {
 }
 
 fn setup_ctx() -> Result<Ctx, String> {
-    let _ = from_filename(".env.local");
+    let _ = from_filename_override(".env.local");
     let _ = from_filename(".env");
 
     let operator_id = env::var("HEDERA_ACCOUNT_ID")
@@ -55,7 +55,7 @@ fn setup_ctx() -> Result<Ctx, String> {
 
     let hcs_service = hcs::HederaHcsService::new(client_service, None);
     let registry = anoncreds::HederaAnonCredsRegistry::new(hcs_service);
-    let key = PrivateKey::from_str(&operator_key)
+    let key = PrivateKey::from_str_der(&operator_key)
         .map_err(|e| format!("Invalid HEDERA_PRIVATE_KEY: {e}"))?;
     let signer: Arc<dyn core::Signer> = Arc::new(hcs::LocalSigner::new(key));
     let issuer_did = format!("did:hedera:{network_name}:testkey_{}", operator_id);

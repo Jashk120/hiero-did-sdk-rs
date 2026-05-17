@@ -95,7 +95,7 @@ impl HederaClientService {
     fn build_client(&self, config: &NetworkConfig) -> Result<Client, DIDError> {
         let operator_id = AccountId::from_str(&config.operator_id)
             .map_err(|e| DIDError::InvalidArgument(format!("Invalid operator ID: {e}")))?;
-        let operator_key = PrivateKey::from_str(&config.operator_key)
+        let operator_key = PrivateKey::from_str_der(&config.operator_key)
             .map_err(|e| DIDError::InvalidArgument(format!("Invalid operator key: {e}")))?;
 
         let client = match &config.network {

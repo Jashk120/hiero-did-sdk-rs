@@ -1,5 +1,5 @@
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
-use dotenvy::dotenv;
+use dotenvy::{from_filename, from_filename_override};
 use hiero_did_core::Signer;
 use hiero_did_client::{
     HederaClientConfiguration, HederaClientService, HederaCustomNetwork, HederaNetwork, NetworkConfig,
@@ -43,7 +43,8 @@ fn unique_tag(prefix: &str) -> String {
 }
 
 fn setup_ctx() -> Option<EnvCtx> {
-    dotenv().ok();
+    let _ = from_filename_override(".env.local");
+    let _ = from_filename(".env");
     let operator_id = env::var("HEDERA_ACCOUNT_ID").ok()?;
     let operator_key = env::var("HEDERA_PRIVATE_KEY").ok()?;
     let network_name = env::var("HEDERA_NETWORK").unwrap_or_else(|_| "testnet".to_string());
@@ -55,7 +56,7 @@ fn setup_ctx() -> Option<EnvCtx> {
     };
     client.set_operator(
         AccountId::from_str(&operator_id).ok()?,
-        PrivateKey::from_str(&operator_key).ok()?,
+        PrivateKey::from_str_der(&operator_key).ok()?,
     );
 
     Some(EnvCtx {
@@ -174,7 +175,7 @@ async fn hcs_topic_create_with_memo_visible_via_get_info() {
 #[serial_test::serial]
 async fn hcs_topic_create_with_props_sets_submit_key() {
     let Some(ctx) = setup_ctx() else { return };
-    let operator_key = PrivateKey::from_str(&ctx.operator_key).expect("key");
+    let operator_key = PrivateKey::from_str_der(&ctx.operator_key).expect("key");
     let submit_signer: Arc<dyn Signer> = Arc::new(LocalSigner::new(operator_key));
     let topic_id = HcsTopic::create_with_props(
         &ctx.client,
@@ -195,7 +196,7 @@ async fn hcs_topic_create_with_props_sets_submit_key() {
 async fn hcs_topic_update_memo_and_delete() {
     let Some(ctx) = setup_ctx() else { return };
     let admin_signer: Arc<dyn Signer> = Arc::new(LocalSigner::new(
-        PrivateKey::from_str(&ctx.operator_key).expect("key"),
+        PrivateKey::from_str_der(&ctx.operator_key).expect("key"),
     ));
     let topic_id = HcsTopic::create_with_props(
         &ctx.client,
@@ -308,7 +309,7 @@ async fn hcs_message_submit_with_submit_key_signer() {
 async fn hcs_file_service_submit_and_resolve() {
     let Some(ctx) = setup_ctx() else { return };
     let submit_signer: Arc<dyn Signer> = Arc::new(LocalSigner::new(
-        PrivateKey::from_str(&ctx.operator_key).expect("key"),
+        PrivateKey::from_str_der(&ctx.operator_key).expect("key"),
     ));
     let payload = br#"{"hello":"world"}"#.to_vec();
     let svc = HcsFileService::new(&ctx.client, ctx.network_name.clone(), None);
@@ -353,7 +354,7 @@ async fn hcs_file_service_resolve_uses_cache() {
 async fn hcs_file_service_large_payload_roundtrip() {
     let Some(ctx) = setup_ctx() else { return };
     let submit_signer: Arc<dyn Signer> = Arc::new(LocalSigner::new(
-        PrivateKey::from_str(&ctx.operator_key).expect("key"),
+        PrivateKey::from_str_der(&ctx.operator_key).expect("key"),
     ));
     let payload = "large-payload-".repeat(20_000).into_bytes();
     let svc = HcsFileService::new(&ctx.client, ctx.network_name.clone(), None);

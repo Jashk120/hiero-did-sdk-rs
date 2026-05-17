@@ -1,4 +1,4 @@
-use dotenvy::dotenv;
+use dotenvy::{from_filename, from_filename_override};
 use hiero_did_client::{
     HederaClientConfiguration, HederaClientService, HederaNetwork, NetworkConfig,
 };
@@ -9,7 +9,8 @@ fn env_or_skip(name: &str) -> Option<String> {
 }
 
 fn test_config_single() -> Option<HederaClientConfiguration> {
-    dotenv().ok();
+    let _ = from_filename_override(".env.local");
+    let _ = from_filename(".env");
     let operator_id = env_or_skip("HEDERA_ACCOUNT_ID")?;
     let operator_key = env_or_skip("HEDERA_PRIVATE_KEY")?;
     let network = env::var("HEDERA_NETWORK").unwrap_or_else(|_| "testnet".to_string());

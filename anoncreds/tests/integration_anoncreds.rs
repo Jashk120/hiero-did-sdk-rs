@@ -1,10 +1,9 @@
 use std::collections::HashMap;
 use std::env;
-use std::str::FromStr;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use dotenvy::from_filename;
+use dotenvy::{from_filename, from_filename_override};
 use hiero_did_anoncreds::{
     AnonCredsCredentialDefinition, AnonCredsRevocationRegistryDefinition,
     AnonCredsRevocationStatusList, AnonCredsSchema, CredentialDefinitionValue,
@@ -34,8 +33,8 @@ struct Ctx {
 }
 
 fn setup_ctx() -> Result<Ctx, String> {
-    // Prefer .env.local for developer-local credentials, then fall back to .env.
-    let _ = from_filename(".env.local");
+    // Force .env.local to override shell env, then fill missing values from .env.
+    let _ = from_filename_override(".env.local");
     let _ = from_filename(".env");
 
     let operator_id = env::var("HEDERA_ACCOUNT_ID")
@@ -48,6 +47,7 @@ fn setup_ctx() -> Result<Ctx, String> {
         "mainnet" => HederaNetwork::Mainnet,
         "testnet" => HederaNetwork::Testnet,
         "previewnet" => HederaNetwork::Previewnet,
+        "local" => HederaNetwork::LocalNode,
         other => {
             return Err(format!(
                 "Unsupported HEDERA_NETWORK='{other}'. Use one of: testnet, mainnet, previewnet"
@@ -66,10 +66,11 @@ fn setup_ctx() -> Result<Ctx, String> {
 
     let hcs_service = HederaHcsService::new(client_service, None);
     let registry = HederaAnonCredsRegistry::new(hcs_service);
-    let key = PrivateKey::from_str(&operator_key)
+    let key = PrivateKey::from_str_der(&operator_key)
         .map_err(|e| format!("Invalid HEDERA_PRIVATE_KEY: {e}"))?;
     let signer: Arc<dyn Signer> = Arc::new(LocalSigner::new(key));
     let issuer_did = format!("did:hedera:{network_name}:testkey_{}", operator_id);
+    println!("ACCOUNT={}", operator_id);
 
     Ok(Ctx {
         network_name,
