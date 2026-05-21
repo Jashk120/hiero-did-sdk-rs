@@ -1,4 +1,7 @@
-# Hiero DID SDK JS Packages Architecture (`packages/`)
+# Legacy Reference: Hiero DID SDK JS Packages Architecture (`packages/`)
+
+> Note: This file documents the older JavaScript/TypeScript monorepo layout and does **not** describe the Rust workspace in this repository.  
+> For current Rust workspace architecture, use `ARCHITECTURE.md` and `README.md`.
 
 This document explains what each package and file set does, how data flows across packages, and what is intentionally out of scope.
 
@@ -405,4 +408,3 @@ For new contributors, recommended order:
 5. `resolver`
 6. backend adapters (`signer-*`, `verifier-*`, `publisher-internal`)
 7. `anoncreds`
-

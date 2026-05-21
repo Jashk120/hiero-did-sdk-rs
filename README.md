@@ -14,6 +14,7 @@ Rust workspace for creating, updating, deactivating, and resolving `did:hedera` 
 - `hiero-did-resolver`: mirror-node reader + DID document reconstruction + DID URL dereference helpers.
 - `hiero-did-anoncreds`: AnonCreds registry layer on top of HCS.
 - `hiero-did-sdk`: umbrella crate that re-exports the workspace crates.
+- `scratch`: local binary crate for ad-hoc experiments (not part of SDK surface).
 
 ## Documentation
 
@@ -26,12 +27,11 @@ Rust workspace for creating, updating, deactivating, and resolving `did:hedera` 
 
 ## Prerequisites
 
-- Rust stable toolchain (edition `2024`)
-- Cargo
+- Rust + Cargo (workspace is pinned to `nightly` via [`rust-toolchain.toml`](rust-toolchain.toml))
 - Outbound network access for integration tests
 - Hedera test account credentials for integration tests
 
-Optional `.env` in repo root:
+Optional env file in repo root (`.env.local` preferred, `.env` also supported):
 
 ```env
 HEDERA_ACCOUNT_ID=0.0.xxxxx
@@ -67,6 +67,7 @@ cargo test -p hiero-did-client --test client_service_integration -- --nocapture
 cargo test -p hiero-did-hcs --test integration_hcs -- --nocapture
 cargo test -p hiero-did-registrar --test integration_test -- --nocapture
 cargo test -p hiero-did-anoncreds --test integration_anoncreds -- --nocapture
+cargo test -p hiero-did-sdk --test integration_anoncreds -- --nocapture
 ```
 
 ## Quick Start (Create + Resolve)

@@ -13,6 +13,10 @@ This Rust workspace currently provides:
 - A convenience re-export layer (`sdk`).
 - A local scratch binary crate for experiments (`scratch`).
 
+Toolchain baseline:
+
+- Workspace is pinned to Rust `nightly` in `rust-toolchain.toml` (`rustfmt` and `clippy` components included).
+
 ## 2. Workspace Topology
 
 Crates in `Cargo.toml`:

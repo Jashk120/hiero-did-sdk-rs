@@ -2,6 +2,12 @@
 
 Focused guides for working with this SDK workspace.
 
+## Workspace Baseline
+
+- Rust workspace pinned to `nightly` via `rust-toolchain.toml`.
+- Integration tests use `.env.local` in repo root (preferred), with `.env` as fallback.
+- Local `scratch` crate exists for experiments and is not part of the SDK public surface.
+
 ## Guides
 
 - [`api-reference.md`](./api-reference.md): public API summary by crate.
