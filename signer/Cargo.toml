@@ -12,3 +12,4 @@ categories = ["cryptography"]
 hiero-did-core = { version = "0.1.0", path = "../core" }
 ed25519-dalek = { workspace = true }
 thiserror = { workspace = true }
+reqwest.workspace = true

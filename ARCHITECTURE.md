@@ -6,10 +6,12 @@ This Rust workspace currently provides:
 
 - DID write operations: create, update, deactivate (`registrar`).
 - DID resolution from topic history (`resolver`).
+- DID URL dereference for resolved documents/resources (`resolver` + `core::did_url`).
 - Hedera client configuration (`client`) and HCS topic/message/file operations (`hcs`).
 - Shared DID/domain primitives (`core`, `method`, `messages`, `signer`).
 - AnonCreds registry operations on top of HCS (`anoncreds`).
 - A convenience re-export layer (`sdk`).
+- A local scratch binary crate for experiments (`scratch`).
 
 ## 2. Workspace Topology
 
@@ -25,6 +27,7 @@ Crates in `Cargo.toml`:
 - `hiero-did-resolver`
 - `hiero-did-anoncreds`
 - `hiero-did-sdk` (re-export layer)
+- `scratch` (local binary crate; not part of SDK surface)
 
 High-level dependency direction:
 
@@ -57,6 +60,7 @@ hiero-did-sdk (re-export only)
 Canonical DID model and shared structures:
 
 - `did`: `Network`, `HederaDid`, `DID_METHOD`, `DID_ROOT_KEY_ID`.
+- `did_url`: `HederaDidUrl` parser for DID URLs (`did`, `path`, `params`, `fragment`).
 - `document`: DID document + resolution metadata models.
 - `keys`: base58 and multibase utilities.
 - `error`: `DIDError`.
@@ -128,8 +132,12 @@ Resolution orchestration:
 - `DidDocumentBuilder` folds validated events into a DID document.
 - Signature verification is performed per message before applying events.
 - Resolver applies create/update/service/deactivate semantics from event stream.
-
-Current scope: DID resolution from topic history; no dedicated DID URL dereference API yet.
+- DID URL dereference is exposed via `resolver::dereference`:
+  - `dereference_did(did_url, messages)` resolves from topic message history and returns either:
+  - whole document (`DereferencedResource::Document`)
+  - matching verification method (`DereferencedResource::VerificationMethod`)
+  - matching service (`DereferencedResource::Service`)
+- Current implementation is exposed as `resolver::mirror`, `resolver::builder`, and `resolver::dereference`.
 
 ### 3.9 `hiero-did-anoncreds`
 
@@ -148,6 +156,14 @@ AnonCreds registry layer on top of HCS service:
 Convenience import surface by re-exporting:
 
 - `core`, `method`, `messages`, `signer`, `client`, `hcs`, `registrar`, `resolver`, `anoncreds`.
+
+### 3.11 `scratch`
+
+Local binary crate used for ad-hoc experiments:
+
+- Not re-exported by `hiero-did-sdk`.
+- Not part of the public SDK contract.
+- Can change independently without semantic compatibility guarantees.
 
 ## 4. Runtime Flows
 
@@ -168,6 +184,11 @@ Convenience import surface by re-exporting:
 4. Submit each signed envelope to the same DID topic in order.
 5. Return applied operation count.
 
+Notes:
+
+- Empty update list returns early with `operations_applied = 0`.
+- `verificationMethod` updates require `public_key_multibase`.
+
 ### 4.3 Deactivate DID
 
 1. Parse topic ID from target DID.
@@ -180,9 +201,10 @@ Convenience import surface by re-exporting:
 
 1. Fetch topic message history from mirror node.
 2. Decode envelopes and filter by target DID.
-3. Verify signatures against event-derived public key.
-4. Apply valid owner/update/service/deactivate events.
-5. Emit `DIDResolution` with metadata.
+3. Establish verifier from DID owner event key material.
+4. Verify signatures against that key.
+5. Apply owner/update/service events; treat `operation == "delete"` as deactivation.
+6. Emit `DIDResolution` with metadata.
 
 ### 4.5 HCS Service Usage
 
@@ -191,7 +213,15 @@ Convenience import surface by re-exporting:
 3. Optionally attach `HcsCacheService`.
 4. Use `HederaHcsService` for topic/message/file operations by network name.
 
-### 4.6 AnonCreds Registry Usage
+### 4.6 Dereference DID URL
+
+1. Parse DID URL into `HederaDidUrl`.
+2. Obtain topic messages for the DID topic (typically via `MirrorNodeClient`).
+3. Call `dereference_did(&did_url, messages)`.
+4. If URL has no fragment, return full `DIDDocument`.
+5. If URL has a fragment, match `did#fragment` against verification methods and services.
+
+### 4.7 AnonCreds Registry Usage
 
 1. Build `HederaClientService` and `HederaHcsService`.
 2. Construct `HederaAnonCredsRegistry`.
@@ -224,6 +254,6 @@ All crates map failures to `hiero_did_core::DIDError` variants:
 
 The following are not yet implemented as first-class Rust workspace features:
 
-- Dedicated DID URL dereference API surface.
 - Vault-backed signer implementation.
 - Generic lifecycle engine package equivalent to JS `lifecycle`.
+- Separate `publisher-internal` crate/surface (publishing is currently handled directly through HCS operations in existing crates).

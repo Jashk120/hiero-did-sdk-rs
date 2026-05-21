@@ -11,7 +11,7 @@ Rust workspace for creating, updating, deactivating, and resolving `did:hedera` 
 - `hiero-did-client`: configurable Hedera client service for single or multi-network setups.
 - `hiero-did-hcs`: topic/message/file helpers and higher-level HCS service with optional cache.
 - `hiero-did-registrar`: DID write operations (`create_did`, `update_did`, `deactivate_did`).
-- `hiero-did-resolver`: mirror-node reader + DID document reconstruction.
+- `hiero-did-resolver`: mirror-node reader + DID document reconstruction + DID URL dereference helpers.
 - `hiero-did-anoncreds`: AnonCreds registry layer on top of HCS.
 - `hiero-did-sdk`: umbrella crate that re-exports the workspace crates.
 
@@ -20,6 +20,7 @@ Rust workspace for creating, updating, deactivating, and resolving `did:hedera` 
 - Docs index: [`docs/README.md`](docs/README.md)
 - API reference: [`docs/api-reference.md`](docs/api-reference.md)
 - Create guide: [`docs/create-did.md`](docs/create-did.md)
+- Dereference guide: [`docs/dereference-did.md`](docs/dereference-did.md)
 - Testing guide: [`docs/testing.md`](docs/testing.md)
 - Architecture notes: [`ARCHITECTURE.md`](ARCHITECTURE.md)
 
@@ -107,6 +108,5 @@ use hiero_did_sdk::{anoncreds, client, core, hcs, messages, method, registrar, r
 
 ## Current Boundaries
 
-- No dedicated DID URL dereference API yet (resolution only).
 - No Vault-backed signer implementation yet.
 - No generic lifecycle-engine crate equivalent to the JS monorepo `lifecycle` package.

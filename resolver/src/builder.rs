@@ -313,7 +313,7 @@ mod tests {
     use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
     use hiero_did_core::{DIDError, HederaDid, KeysUtility, did::Network};
     use hiero_did_messages::{
-        DIDOwnerMessage, HcsEnvelope, HcsMessage,
+        DIDOwnerMessage, HcsEnvelope,
         DIDAddVerificationMethodMessage, DIDAddServiceMessage,
         DIDRemoveVerificationMethodMessage, DIDRemoveServiceMessage,
         DIDDeactivateMessage,

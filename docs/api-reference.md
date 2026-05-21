@@ -13,6 +13,9 @@ Shared data model, DID types, errors, signer trait, and key utilities.
 - `root_key_id()`
 - `Display` and `FromStr`
 - Constants: `DID_METHOD`, `DID_ROOT_KEY_ID`
+- `did_url::HederaDidUrl`
+- Fields: `did`, `path`, `params`, `fragment`
+- `FromStr` parser for DID URL strings
 - `keys::KeysUtility`
 - `from_bytes(Vec<u8>)`
 - `from_base58(&str) -> Result<_, DIDError>`
@@ -122,7 +125,7 @@ High-level DID write operations.
 
 ## `hiero-did-resolver`
 
-Mirror-node retrieval and DID resolution.
+Mirror-node retrieval, DID resolution, and DID URL dereference.
 
 - `MirrorNodeClient`
 - `for_testnet()`
@@ -131,6 +134,12 @@ Mirror-node retrieval and DID resolution.
 - `DidDocumentBuilder`
 - `from(messages: Vec<String>) -> DidDocumentBuilder`
 - `resolve(&self, did: &HederaDid) -> Result<DIDResolution, DIDError>` (async)
+- DID URL dereference
+- `dereference::DereferencedResource`
+- `Document(DIDDocument)`
+- `VerificationMethod(VerificationMethod)`
+- `Service(Service)`
+- `dereference::dereference_did(did_url: &HederaDidUrl, messages: Vec<String>) -> Result<DereferencedResource, DIDError>` (async)
 
 ## `hiero-did-anoncreds`
 
