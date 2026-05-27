@@ -7,10 +7,10 @@ Rust workspace for creating, updating, deactivating, and resolving `did:hedera` 
 - `hiero-did-core`: canonical DID types, document models, errors, and key utilities.
 - `hiero-did-method`: parser/validator helpers for `did:hedera` and topic IDs.
 - `hiero-did-messages`: signed envelope + DID event message models (owner/update/deactivate).
-- `hiero-did-signer`: internal Ed25519 sign/verify helpers.
+- `hiero-did-signer`: internal Ed25519 sign/verify helpers, plus optional HashiCorp Vault transit signing behind the `vault` feature.
 - `hiero-did-client`: configurable Hedera client service for single or multi-network setups.
-- `hiero-did-hcs`: topic/message/file helpers and higher-level HCS service with optional cache.
-- `hiero-did-registrar`: DID write operations (`create_did`, `update_did`, `deactivate_did`).
+- `hiero-did-hcs`: topic/message/file helpers and higher-level HCS service with optional cache and signer-backed submit/admin key support.
+- `hiero-did-registrar`: DID write operations (`create_did`, `update_did`, `deactivate_did`) plus signer-backed variants for external key custody.
 - `hiero-did-resolver`: mirror-node reader + DID document reconstruction + DID URL dereference helpers.
 - `hiero-did-anoncreds`: AnonCreds registry layer on top of HCS.
 - `hiero-did-sdk`: umbrella crate that re-exports the workspace crates.
@@ -50,6 +50,13 @@ cargo build --workspace
 cargo check --workspace
 cargo fmt --all
 cargo clippy --workspace --all-targets --all-features
+```
+
+Check the Vault-backed signer feature:
+
+```bash
+cargo check -p hiero-did-signer --features vault
+cargo test -p hiero-did-signer --features vault
 ```
 
 ## Tests
@@ -107,7 +114,39 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 use hiero_did_sdk::{anoncreds, client, core, hcs, messages, method, registrar, resolver, signer};
 ```
 
+## External Signers
+
+The core signing abstraction is `hiero_did_core::Signer`. The registrar exposes signer-backed variants for DID operations:
+
+- `create_did_with_signer`
+- `update_did_with_signer`
+- `deactivate_did_with_signer`
+
+These accept any implementation of `Signer`, including `InternalSigner` and, when enabled, `VaultSigner`.
+
+Enable Vault signing in `hiero-did-signer`:
+
+```toml
+hiero-did-signer = { path = "signer", features = ["vault"] }
+```
+
+Example Vault signer setup:
+
+```rust
+use hiero_did_signer::{VaultAuth, VaultSigner, VaultSignerConfig};
+
+let cfg = VaultSignerConfig::new(
+    "http://127.0.0.1:8200",
+    VaultAuth::Token("vault-token".to_string()),
+    "did-key",
+);
+let signer = VaultSigner::new(cfg)?;
+```
+
+For access-controlled HCS topics, `hiero-did-hcs` accepts `Arc<dyn Signer>` submit/admin signers. Signer failures are returned as `DIDError` instead of being converted to empty signatures.
+
 ## Current Boundaries
 
-- No Vault-backed signer implementation yet.
+- Vault-backed signing is feature-gated and uses blocking HTTP internally to fit the synchronous `Signer` trait.
+- Live Vault and live Hedera integration tests require external services and credentials.
 - No generic lifecycle-engine crate equivalent to the JS monorepo `lifecycle` package.

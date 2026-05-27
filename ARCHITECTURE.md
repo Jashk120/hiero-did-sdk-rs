@@ -95,10 +95,14 @@ Wire-level message models used on HCS:
 
 ### 3.4 `hiero-did-signer`
 
-Local Ed25519 boundary:
+Ed25519 signing and verification boundary:
 
 - `InternalSigner` for private-key signing.
 - `InternalVerifier` for signature validation.
+- Optional `vault` feature:
+  - `VaultSigner` for HashiCorp Vault transit-backed Ed25519 signing.
+  - `VaultSignerConfig` and `VaultAuth` for Vault URL, key, mount path, token, and AppRole configuration.
+  - Vault signing keeps private key material outside the SDK and returns raw 64-byte Ed25519 signatures through the shared `core::Signer` trait.
 
 ### 3.5 `hiero-did-client`
 
@@ -117,16 +121,21 @@ HCS primitives and service facade:
 - File ops (`HcsFileService`): chunked/compressed payload publish/resolve.
 - Cache (`HcsCacheService`): topic info/messages/file caching.
 - `HederaHcsService`: combines `HederaClientService` + optional cache.
+- Shared transaction-signing helper (`hcs::signing`) adapts `core::Signer` instances to Hedera transaction `sign_with` callbacks and preserves signer errors instead of replacing failures with empty signatures.
 
 ### 3.7 `hiero-did-registrar`
 
 DID write orchestration:
 
 - `create::create_did(client, network, controller)`
+- `create::create_did_with_signer(client, network, controller, signer)`
 - `update::update_did(client, did, private_key_bytes, updates)`
+- `update::update_did_with_signer(client, did, signer, updates)`
 - `deactivate::deactivate_did(client, did, private_key_bytes)`
+- `deactivate::deactivate_did_with_signer(client, did, signer)`
 
 The update path supports verification method and service add/remove operations via `DIDUpdateOperation`.
+The `*_with_signer` APIs accept any `core::Signer`, including `InternalSigner` and feature-gated `VaultSigner`.
 
 ### 3.8 `hiero-did-resolver`
 
@@ -173,6 +182,8 @@ Local binary crate used for ad-hoc experiments:
 
 ### 4.1 Create DID
 
+Default local-key flow:
+
 1. Generate Ed25519 keypair.
 2. Create HCS topic.
 3. Build DID: `did:hedera:<network>:<base58key>_<topicId>`.
@@ -180,11 +191,20 @@ Local binary crate used for ad-hoc experiments:
 5. Submit envelope to topic.
 6. Return DID and raw key bytes.
 
+External signer flow:
+
+1. Read public key bytes from the provided `core::Signer`.
+2. Create HCS topic.
+3. Build DID from the signer public key and topic ID.
+4. Build owner message and sign serialized message bytes through `Signer::sign_bytes`.
+5. Submit envelope to topic.
+6. Return DID and public key bytes. Private key bytes are not returned because key custody is external.
+
 ### 4.2 Update DID
 
 1. Parse topic ID from target DID.
 2. Convert each `DIDUpdateOperation` to an update message.
-3. Sign serialized message bytes with DID private key.
+3. Sign serialized message bytes with either DID private key bytes (`update_did`) or an external `core::Signer` (`update_did_with_signer`).
 4. Submit each signed envelope to the same DID topic in order.
 5. Return applied operation count.
 
@@ -197,7 +217,7 @@ Notes:
 
 1. Parse topic ID from target DID.
 2. Build deactivate message (`operation = "delete"`).
-3. Sign serialized message bytes with DID private key.
+3. Sign serialized message bytes with either DID private key bytes (`deactivate_did`) or an external `core::Signer` (`deactivate_did_with_signer`).
 4. Submit signed envelope to DID topic.
 5. Return tombstoned document metadata payload.
 
@@ -216,6 +236,7 @@ Notes:
 2. Create `HederaClientService`.
 3. Optionally attach `HcsCacheService`.
 4. Use `HederaHcsService` for topic/message/file operations by network name.
+5. For access-controlled topics, pass `Arc<dyn Signer>` submit/admin signers. HCS captures signer failures and returns the original `DIDError`.
 
 ### 4.6 Dereference DID URL
 
@@ -258,6 +279,11 @@ All crates map failures to `hiero_did_core::DIDError` variants:
 
 The following are not yet implemented as first-class Rust workspace features:
 
-- Vault-backed signer implementation.
 - Generic lifecycle engine package equivalent to JS `lifecycle`.
 - Separate `publisher-internal` crate/surface (publishing is currently handled directly through HCS operations in existing crates).
+
+Current caveats:
+
+- Vault signing is feature-gated in `hiero-did-signer` behind the `vault` feature.
+- Vault HTTP calls are currently implemented with `reqwest::blocking` to satisfy the synchronous `core::Signer` trait.
+- Live Vault and live Hedera integration coverage still require external services and credentials.

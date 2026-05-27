@@ -56,7 +56,7 @@ HCS envelope and DID event payload helpers.
 
 ## `hiero-did-signer`
 
-Ed25519 sign/verify helpers.
+Ed25519 sign/verify helpers and optional external custody signing.
 
 - `InternalSigner`
 - `from_bytes(&[u8; 32]) -> Result<Self, DIDError>`
@@ -66,6 +66,16 @@ Ed25519 sign/verify helpers.
 - `InternalVerifier`
 - `from_bytes(&[u8]) -> Result<Self, DIDError>`
 - `verify(message: &[u8], signature: &[u8]) -> Result<bool, DIDError>`
+- With the `vault` feature:
+- `VaultSigner`
+- `new(VaultSignerConfig) -> Result<Self, DIDError>`
+- Implements `hiero_did_core::Signer`
+- `VaultSignerConfig`
+- `new(vault_url, auth, key_name) -> Self`
+- Defaults `mount_path` to `transit`
+- `VaultAuth`
+- `Token(String)`
+- `AppRole { role_id, secret_id }`
 
 ## `hiero-did-client`
 
@@ -95,6 +105,9 @@ Hedera HCS helper layer and service facade.
 - `submit`
 - Topic/message types
 - `CreateTopicProps`, `UpdateTopicProps`, `DeleteTopicProps`, `TopicInfo`
+- `CreateTopicProps.submit_key_signer: Option<Arc<dyn Signer>>`
+- `CreateTopicProps.admin_key_signer: Option<Arc<dyn Signer>>`
+- `UpdateTopicProps.admin_key_signer: Arc<dyn Signer>`
 - `GetTopicMessagesProps`, `TopicMessageData`, `SubmitMessageResult`
 - `HcsMessage::submit`, `HcsMessage::get_topic_messages`, `HcsMessage::get_topic_messages_with_cache`
 - File operations
@@ -113,9 +126,13 @@ Hedera HCS helper layer and service facade.
 High-level DID write operations.
 
 - `create::create_did(client, network, controller) -> Result<CreateDIDResult, DIDError>`
+- `create::create_did_with_signer(client, network, controller, signer) -> Result<CreateDIDWithSignerResult, DIDError>`
 - `update::update_did(client, did, private_key_bytes, updates) -> Result<UpdateDIDResult, DIDError>`
+- `update::update_did_with_signer(client, did, signer, updates) -> Result<UpdateDIDResult, DIDError>`
 - `deactivate::deactivate_did(client, did, private_key_bytes) -> Result<DeactivateDIDResult, DIDError>`
+- `deactivate::deactivate_did_with_signer(client, did, signer) -> Result<DeactivateDIDResult, DIDError>`
 - `CreateDIDResult { did, private_key_bytes, public_key_bytes }`
+- `CreateDIDWithSignerResult { did, public_key_bytes }`
 - `UpdateDIDResult { did, operations_applied }`
 - `DeactivateDIDResult { did, did_document }`
 - Update helper types

@@ -32,6 +32,15 @@ cargo fmt --all
 cargo clippy --workspace --all-targets --all-features
 ```
 
+## Run Feature-Specific Checks
+
+Vault-backed signing is feature-gated in `hiero-did-signer`:
+
+```bash
+cargo check -p hiero-did-signer --features vault
+cargo test -p hiero-did-signer --features vault
+```
+
 ## Run Integration Tests by Crate
 
 ```bash
@@ -49,7 +58,9 @@ cargo test -p hiero-did-sdk --test integration_anoncreds -- --nocapture
 - `hiero-did-hcs`
 - topic create/update/delete, message publish/read, file publish/resolve, cache + service paths.
 - `hiero-did-registrar`
-- DID write flows around create, update (add/remove verification methods and services), and deactivate.
+- DID write flows around create, update (add/remove verification methods and services), deactivate, and signer-backed validation paths.
+- `hiero-did-signer`
+- local Ed25519 signing/verification plus feature-gated Vault response parsing and signer configuration tests.
 - `hiero-did-anoncreds`
 - schema/cred-def/revocation registry operations on HCS.
 - `hiero-did-sdk`
