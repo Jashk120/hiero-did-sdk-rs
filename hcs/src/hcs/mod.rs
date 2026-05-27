@@ -1,5 +1,6 @@
 pub mod file;
 pub mod message;
+pub(crate) mod signing;
 pub mod topic;
 
 pub use file::{HcsFileService, ResolveFileProps, SubmitFileProps};

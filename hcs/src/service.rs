@@ -25,7 +25,9 @@ impl HederaHcsService {
 
     pub async fn create_topic(&self, network_name: Option<&str>) -> Result<TopicId, DIDError> {
         self.client_service
-            .with_client(network_name, |client| async move { HcsTopic::create(&client).await })
+            .with_client(network_name, |client| async move {
+                HcsTopic::create(&client).await
+            })
             .await
     }
 
@@ -59,7 +61,9 @@ impl HederaHcsService {
         props: UpdateTopicProps,
     ) -> Result<(), DIDError> {
         self.client_service
-            .with_client(network_name, |client| async move { HcsTopic::update(&client, props).await })
+            .with_client(network_name, |client| async move {
+                HcsTopic::update(&client, props).await
+            })
             .await
     }
 
@@ -69,7 +73,9 @@ impl HederaHcsService {
         topic_id: TopicId,
     ) -> Result<(), DIDError> {
         self.client_service
-            .with_client(network_name, |client| async move { HcsTopic::delete(&client, topic_id).await })
+            .with_client(network_name, |client| async move {
+                HcsTopic::delete(&client, topic_id).await
+            })
             .await
     }
 
@@ -91,7 +97,9 @@ impl HederaHcsService {
         topic_id: TopicId,
     ) -> Result<TopicInfo, DIDError> {
         self.client_service
-            .with_client(network_name, |client| async move { HcsTopic::get_info(&client, topic_id).await })
+            .with_client(network_name, |client| async move {
+                HcsTopic::get_info(&client, topic_id).await
+            })
             .await
     }
 

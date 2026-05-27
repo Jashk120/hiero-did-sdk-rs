@@ -1,7 +1,8 @@
+use hiero_did_core::signer::Signer;
 use hiero_did_core::{DIDError, HederaDid};
+use hiero_did_hcs::HcsTopic;
 use hiero_did_messages::DIDDeactivateMessage;
 use hiero_did_signer::InternalSigner;
-use hiero_did_hcs::HcsTopic;
 use hiero_sdk::Client;
 
 pub struct DeactivateDIDResult {
@@ -32,7 +33,9 @@ pub async fn deactivate_did(
 ) -> Result<DeactivateDIDResult, DIDError> {
     let did_str = did.to_string();
 
-    let topic_id = did.topic_id.parse()
+    let topic_id = did
+        .topic_id
+        .parse()
         .map_err(|e| DIDError::InvalidDid(format!("Cannot parse topic ID from DID: {}", e)))?;
 
     let message = DIDDeactivateMessage::new(did);
@@ -54,11 +57,51 @@ pub async fn deactivate_did(
     })
 }
 
+pub async fn deactivate_did_with_signer(
+    client: &Client,
+    did: HederaDid,
+    signer: &dyn Signer,
+) -> Result<DeactivateDIDResult, DIDError> {
+    let did_str = did.to_string();
+    let topic_id = did
+        .topic_id
+        .parse()
+        .map_err(|e| DIDError::InvalidDid(format!("Cannot parse topic ID from DID: {}", e)))?;
+
+    let message = DIDDeactivateMessage::new(did);
+    let msg_bytes = message.message_bytes()?;
+    let signature = signer.sign_bytes(&msg_bytes)?;
+    let payload = message.to_payload(&signature)?;
+
+    HcsTopic::submit(client, topic_id, payload).await?;
+
+    Ok(DeactivateDIDResult {
+        did_document: DeactivatedDIDDocument {
+            id: did_str.clone(),
+            controller: did_str.clone(),
+            verification_method: vec![],
+        },
+        did: did_str,
+    })
+}
+
 #[cfg(test)]
 mod tests {
-    use super::deactivate_did;
-    use hiero_did_core::{did::Network, DIDError, HederaDid};
+    use super::{deactivate_did, deactivate_did_with_signer};
+    use hiero_did_core::{DIDError, HederaDid, Signer, did::Network};
     use hiero_sdk::Client;
+
+    struct TestSigner;
+
+    impl Signer for TestSigner {
+        fn public_key_bytes(&self) -> Vec<u8> {
+            vec![1u8; 32]
+        }
+
+        fn sign_bytes(&self, _message: &[u8]) -> Result<Vec<u8>, DIDError> {
+            Ok(vec![2u8; 64])
+        }
+    }
 
     #[tokio::test]
     async fn deactivate_rejects_invalid_topic_id() {
@@ -68,6 +111,20 @@ mod tests {
             Ok(_) => panic!("must fail"),
             Err(e) => e,
         };
+        assert!(matches!(err, DIDError::InvalidDid(_)));
+    }
+
+    #[tokio::test]
+    async fn deactivate_with_signer_rejects_invalid_topic_id() {
+        let client = Client::for_testnet();
+        let did = HederaDid::new(Network::Testnet, "abc".to_string(), "bad-topic".to_string());
+        let signer = TestSigner;
+
+        let err = match deactivate_did_with_signer(&client, did, &signer).await {
+            Ok(_) => panic!("must fail"),
+            Err(e) => e,
+        };
+
         assert!(matches!(err, DIDError::InvalidDid(_)));
     }
 }

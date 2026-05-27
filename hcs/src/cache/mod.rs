@@ -160,7 +160,12 @@ mod tests {
         cache.remove_topic_info("testnet", "0.0.1002").await;
 
         assert!(cache.get_topic_info("testnet", "0.0.1002").await.is_none());
-        assert!(cache.get_topic_messages("testnet", "0.0.1002").await.is_none());
+        assert!(
+            cache
+                .get_topic_messages("testnet", "0.0.1002")
+                .await
+                .is_none()
+        );
         assert!(cache.get_topic_file("testnet", "0.0.1002").await.is_none());
     }
 

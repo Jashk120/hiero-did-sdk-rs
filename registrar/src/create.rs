@@ -1,15 +1,21 @@
-use hiero_did_core::{DIDError, HederaDid, KeysUtility};
+use hiero_did_core::Signer;
 use hiero_did_core::did::Network;
+use hiero_did_core::{DIDError, HederaDid, KeysUtility};
+use hiero_did_hcs::HcsTopic;
 use hiero_did_messages::DIDOwnerMessage;
 use hiero_did_signer::InternalSigner;
 use hiero_sdk::{Client, PrivateKey};
-use hiero_did_hcs::HcsTopic;
-
 
 pub struct CreateDIDResult {
     pub did: HederaDid,
     /// Raw 32-byte ed25519 private key — caller must store this securely
     pub private_key_bytes: Vec<u8>,
+    /// Raw 32-byte ed25519 public key
+    pub public_key_bytes: Vec<u8>,
+}
+
+pub struct CreateDIDWithSignerResult {
+    pub did: HederaDid,
     /// Raw 32-byte ed25519 public key
     pub public_key_bytes: Vec<u8>,
 }
@@ -42,11 +48,7 @@ pub async fn create_did(
     let did = HederaDid::new(network, base58_key, topic_id_str);
 
     // 4. Build the DIDOwner message
-    let message = DIDOwnerMessage::new(
-        did.clone(),
-        public_key_bytes.clone(),
-        controller,
-    );
+    let message = DIDOwnerMessage::new(did.clone(), public_key_bytes.clone(), controller);
 
     // 5. Sign with the DID private key
     let signer = InternalSigner::from_raw_bytes(&private_key_bytes)?;
@@ -62,6 +64,35 @@ pub async fn create_did(
     Ok(CreateDIDResult {
         did,
         private_key_bytes,
+        public_key_bytes,
+    })
+}
+
+/// Creates a DID using an externally-managed signer.
+pub async fn create_did_with_signer(
+    client: &Client,
+    network: Network,
+    controller: Option<String>,
+    signer: &dyn Signer,
+) -> Result<CreateDIDWithSignerResult, DIDError> {
+    let public_key_bytes = signer.public_key_bytes();
+
+    // Same steps as create_did from here
+    let topic_id = HcsTopic::create(client).await?;
+    let topic_id_str = format!("{}", topic_id);
+
+    let base58_key = KeysUtility::from_bytes(public_key_bytes.clone()).to_base58();
+    let did = HederaDid::new(network, base58_key, topic_id_str);
+
+    let message = DIDOwnerMessage::new(did.clone(), public_key_bytes.clone(), controller);
+    let msg_bytes = message.message_bytes()?;
+    let signature = signer.sign_bytes(&msg_bytes)?;
+    let payload = message.to_payload(&signature)?;
+
+    HcsTopic::submit(client, topic_id, payload).await?;
+
+    Ok(CreateDIDWithSignerResult {
+        did,
         public_key_bytes,
     })
 }

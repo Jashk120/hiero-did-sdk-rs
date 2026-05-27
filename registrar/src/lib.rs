@@ -1,16 +1,10 @@
 pub mod create;
-pub mod update;
 pub mod deactivate;
+pub mod update;
 
-pub use create::CreateDIDResult;
+pub use create::{CreateDIDResult, CreateDIDWithSignerResult, create_did_with_signer};
+pub use deactivate::{DeactivateDIDResult, DeactivatedDIDDocument, deactivate_did_with_signer};
 pub use update::{
-    UpdateDIDResult,
-    DIDUpdateOperation,
-    AddVerificationMethod,
-    RemoveVerificationMethod,
-    AddService,
-    RemoveService,
-    VerificationMethodProperty,
-    HcsSignable,
+    AddService, AddVerificationMethod, DIDUpdateOperation, HcsSignable, RemoveService,
+    RemoveVerificationMethod, UpdateDIDResult, VerificationMethodProperty, update_did_with_signer,
 };
-pub use deactivate::{DeactivateDIDResult, DeactivatedDIDDocument};

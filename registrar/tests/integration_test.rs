@@ -3,8 +3,8 @@ use hiero_did_core::did::Network;
 use hiero_did_registrar::create::create_did;
 use hiero_did_registrar::deactivate::deactivate_did;
 use hiero_did_registrar::update::{
-    AddService, AddVerificationMethod, DIDUpdateOperation, RemoveService,
-    RemoveVerificationMethod, VerificationMethodProperty, update_did,
+    AddService, AddVerificationMethod, DIDUpdateOperation, RemoveService, RemoveVerificationMethod,
+    VerificationMethodProperty, update_did,
 };
 use hiero_did_resolver::{DidDocumentBuilder, MirrorNodeClient};
 use hiero_sdk::{AccountId, Client, PrivateKey};
@@ -18,10 +18,8 @@ fn setup_client() -> Client {
     let _ = from_filename_override(".env.local");
     let _ = from_filename(".env");
 
-    let account_id = env::var("HEDERA_ACCOUNT_ID")
-        .expect("HEDERA_ACCOUNT_ID not set");
-    let private_key = env::var("HEDERA_PRIVATE_KEY")
-        .expect("HEDERA_PRIVATE_KEY not set");
+    let account_id = env::var("HEDERA_ACCOUNT_ID").expect("HEDERA_ACCOUNT_ID not set");
+    let private_key = env::var("HEDERA_PRIVATE_KEY").expect("HEDERA_PRIVATE_KEY not set");
 
     let client = Client::for_testnet();
     client.set_operator(
@@ -77,10 +75,13 @@ async fn test_create_and_resolve_did() {
             .await
             .expect("Failed to read mirror debug response body");
         println!("Mirror raw JSON bytes: {}", debug_text.len());
-        println!("Mirror raw JSON preview: {}", &debug_text.chars().take(1200).collect::<String>());
+        println!(
+            "Mirror raw JSON preview: {}",
+            &debug_text.chars().take(1200).collect::<String>()
+        );
 
-        let debug_json: Value = serde_json::from_str(&debug_text)
-            .expect("Failed to parse mirror debug JSON");
+        let debug_json: Value =
+            serde_json::from_str(&debug_text).expect("Failed to parse mirror debug JSON");
         let top_keys = debug_json
             .as_object()
             .map(|m| m.keys().cloned().collect::<Vec<_>>())
@@ -129,7 +130,9 @@ async fn test_update_did_add_and_remove_operations() {
     let vm_id = format!("{}#key-1", did_str);
     let service_id = format!("{}#svc-1", did_str);
     let service_endpoint = "https://example.com/agent".to_string();
-    let vm_key = hiero_sdk::PrivateKey::generate_ed25519().public_key().to_bytes_raw();
+    let vm_key = hiero_sdk::PrivateKey::generate_ed25519()
+        .public_key()
+        .to_bytes_raw();
     let vm_public_key_multibase = hiero_did_core::KeysUtility::from_bytes(vm_key).to_multibase();
 
     let add_ops = vec![

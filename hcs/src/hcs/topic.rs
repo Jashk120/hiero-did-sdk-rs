@@ -3,11 +3,14 @@ use std::time::Duration;
 
 use hiero_did_core::{DIDError, Signer};
 use hiero_sdk::{
-    Client, Key, PublicKey, TopicCreateTransaction, TopicDeleteTransaction, TopicId,
-    TopicInfoQuery, TopicMessageSubmitTransaction, TopicUpdateTransaction,
+    Client, Key, TopicCreateTransaction, TopicDeleteTransaction, TopicId, TopicInfoQuery,
+    TopicMessageSubmitTransaction, TopicUpdateTransaction,
 };
 use time::OffsetDateTime;
 
+use crate::hcs::signing::{
+    public_key_from_signer, sign_with_error_capture, signing_error_slot, take_signing_error,
+};
 use crate::shared::wait_for_changes;
 
 // ── Public types ──────────────────────────────────────────────────────────────
@@ -101,6 +104,7 @@ impl HcsTopic {
         let expected_admin_key = props.admin_key_signer.is_some();
         let expected_auto_renew = props.auto_renew_period_seconds;
         let mut tx = TopicCreateTransaction::new();
+        let signing_errors = signing_error_slot();
 
         if let Some(memo) = props.topic_memo {
             tx.topic_memo(memo);
@@ -109,25 +113,37 @@ impl HcsTopic {
         if let Some(signer) = props.submit_key_signer {
             let pk = public_key_from_signer(signer.as_ref())?;
             tx.submit_key(pk);
-            let s = Arc::clone(&signer);
-            tx.sign_with(pk, move |bytes: &[u8]| s.sign_bytes(bytes).unwrap_or_default());
+            tx.sign_with(
+                pk,
+                sign_with_error_capture(Arc::clone(&signer), Arc::clone(&signing_errors)),
+            );
         }
 
         if let Some(signer) = props.admin_key_signer {
             let pk = public_key_from_signer(signer.as_ref())?;
             tx.admin_key(pk);
-            let s = Arc::clone(&signer);
-            tx.sign_with(pk, move |bytes: &[u8]| s.sign_bytes(bytes).unwrap_or_default());
+            tx.sign_with(
+                pk,
+                sign_with_error_capture(Arc::clone(&signer), Arc::clone(&signing_errors)),
+            );
         }
 
         if let Some(secs) = props.auto_renew_period_seconds {
             tx.auto_renew_period(time::Duration::seconds(secs));
         }
 
-        let receipt = tx
-            .execute(client)
-            .await
-            .map_err(|e| DIDError::InternalError(format!("Failed to create topic: {e}")))?
+        let response = match tx.execute(client).await {
+            Ok(response) => response,
+            Err(e) => {
+                take_signing_error(&signing_errors)?;
+                return Err(DIDError::InternalError(format!(
+                    "Failed to create topic: {e}"
+                )));
+            }
+        };
+        take_signing_error(&signing_errors)?;
+
+        let receipt = response
             .get_receipt(client)
             .await
             .map_err(|e| DIDError::InternalError(format!("Failed to get topic receipt: {e}")))?;
@@ -198,14 +214,28 @@ impl HcsTopic {
             tx.expiration_time(exp);
         }
 
+        let signing_errors = signing_error_slot();
         let pk = public_key_from_signer(props.admin_key_signer.as_ref())?;
-        let s = Arc::clone(&props.admin_key_signer);
-        tx.sign_with(pk, move |bytes: &[u8]| s.sign_bytes(bytes).unwrap_or_default());
+        tx.sign_with(
+            pk,
+            sign_with_error_capture(
+                Arc::clone(&props.admin_key_signer),
+                Arc::clone(&signing_errors),
+            ),
+        );
 
-        let receipt = tx
-            .execute(client)
-            .await
-            .map_err(|e| DIDError::InternalError(format!("Failed to update topic: {e}")))?
+        let response = match tx.execute(client).await {
+            Ok(response) => response,
+            Err(e) => {
+                take_signing_error(&signing_errors)?;
+                return Err(DIDError::InternalError(format!(
+                    "Failed to update topic: {e}"
+                )));
+            }
+        };
+        take_signing_error(&signing_errors)?;
+
+        let receipt = response
             .get_receipt(client)
             .await
             .map_err(|e| DIDError::InternalError(format!("Failed to get update receipt: {e}")))?;
@@ -267,7 +297,10 @@ impl HcsTopic {
     }
 
     /// Delete an HCS topic with optional visibility wait.
-    pub async fn delete_with_props(client: &Client, props: DeleteTopicProps) -> Result<(), DIDError> {
+    pub async fn delete_with_props(
+        client: &Client,
+        props: DeleteTopicProps,
+    ) -> Result<(), DIDError> {
         let receipt = TopicDeleteTransaction::new()
             .topic_id(props.topic_id)
             .execute(client)
@@ -352,14 +385,6 @@ impl HcsTopic {
             sequence_number: receipt.topic_sequence_number,
         })
     }
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-pub(crate) fn public_key_from_signer(signer: &dyn Signer) -> Result<PublicKey, DIDError> {
-    let bytes = signer.public_key_bytes();
-    PublicKey::from_bytes_ed25519(&bytes)
-        .map_err(|e| DIDError::InternalError(format!("Invalid public key from signer: {e}")))
 }
 
 fn key_to_string(key: &Key) -> String {

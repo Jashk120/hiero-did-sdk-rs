@@ -1,4 +1,4 @@
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
+use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use hiero_did_core::DIDError;
 use hiero_sdk::{Client, TopicId};
 use sha2::{Digest, Sha256};
@@ -122,7 +122,10 @@ impl<'a> HcsFileService<'a> {
 
     pub async fn resolve_file(&self, props: &ResolveFileProps) -> Result<Vec<u8>, DIDError> {
         if let Some(cache) = &self.cache {
-            if let Some(cached) = cache.get_topic_file(&self.network_name, &props.topic_id).await {
+            if let Some(cached) = cache
+                .get_topic_file(&self.network_name, &props.topic_id)
+                .await
+            {
                 return Ok(cached);
             }
         }
@@ -248,7 +251,10 @@ fn is_valid_hcs1_memo(memo: &str) -> bool {
 }
 
 fn is_valid_hcs1_checksum(memo: &str, checksum: &str) -> bool {
-    memo.split(':').next().map(|h| h == checksum).unwrap_or(false)
+    memo.split(':')
+        .next()
+        .map(|h| h == checksum)
+        .unwrap_or(false)
 }
 
 #[cfg(test)]
@@ -272,7 +278,10 @@ mod tests {
 
         let chunk_messages: Vec<ChunkMessage> = chunks
             .iter()
-            .map(|(o, c)| ChunkMessage { o: *o, c: c.clone() })
+            .map(|(o, c)| ChunkMessage {
+                o: *o,
+                c: c.clone(),
+            })
             .collect();
 
         let rebuilt = svc
@@ -293,7 +302,10 @@ mod tests {
 
         let chunk_messages: Vec<ChunkMessage> = chunks
             .iter()
-            .map(|(o, c)| ChunkMessage { o: *o, c: c.clone() })
+            .map(|(o, c)| ChunkMessage {
+                o: *o,
+                c: c.clone(),
+            })
             .collect();
 
         let rebuilt = svc
@@ -309,7 +321,11 @@ mod tests {
         assert!(is_valid_hcs1_memo(&valid));
         assert!(!is_valid_hcs1_memo("short"));
         assert!(!is_valid_hcs1_memo(&format!("{checksum}:not-zstd")));
-        assert!(!is_valid_hcs1_memo(&format!("{}{}", "g".repeat(64), HCS1_MEMO_PATTERN)));
+        assert!(!is_valid_hcs1_memo(&format!(
+            "{}{}",
+            "g".repeat(64),
+            HCS1_MEMO_PATTERN
+        )));
     }
 
     #[test]

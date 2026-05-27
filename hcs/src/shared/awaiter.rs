@@ -1,5 +1,5 @@
 use std::time::Duration;
-use tokio::time::{sleep, Instant};
+use tokio::time::{Instant, sleep};
 
 const DEFAULT_POLL_INTERVAL_MS: u64 = 1000;
 const DEFAULT_TIMEOUT_SECS: u64 = 45;
@@ -44,8 +44,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::wait_for_changes;
-    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     #[tokio::test]
     async fn succeeds_when_condition_met_before_timeout() {
@@ -80,9 +80,10 @@ mod tests {
         .await;
 
         assert!(out.is_err());
-        assert!(out
-            .err()
-            .expect("error")
-            .contains("Timed out waiting for changes"));
+        assert!(
+            out.err()
+                .expect("error")
+                .contains("Timed out waiting for changes")
+        );
     }
 }

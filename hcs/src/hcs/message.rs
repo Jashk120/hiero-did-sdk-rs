@@ -7,7 +7,9 @@ use hiero_sdk::{Client, TopicId, TopicMessageQuery, TopicMessageSubmitTransactio
 use time::OffsetDateTime;
 
 use crate::cache::HcsCacheService;
-use crate::hcs::topic::public_key_from_signer;
+use crate::hcs::signing::{
+    public_key_from_signer, sign_with_error_capture, signing_error_slot, take_signing_error,
+};
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct TopicMessageData {
@@ -42,17 +44,26 @@ impl HcsMessage {
     ) -> Result<SubmitMessageResult, DIDError> {
         let mut tx = TopicMessageSubmitTransaction::new();
         tx.topic_id(topic_id).message(message);
+        let signing_errors = signing_error_slot();
 
         if let Some(signer) = submit_key_signer {
             let pk = public_key_from_signer(signer.as_ref())?;
-            let s = Arc::clone(&signer);
-            tx.sign_with(pk, move |bytes: &[u8]| s.sign_bytes(bytes).unwrap_or_default());
+            tx.sign_with(
+                pk,
+                sign_with_error_capture(Arc::clone(&signer), Arc::clone(&signing_errors)),
+            );
         }
 
-        let response = tx
-            .execute(client)
-            .await
-            .map_err(|e| DIDError::InternalError(format!("Failed to submit message: {e}")))?;
+        let response = match tx.execute(client).await {
+            Ok(response) => response,
+            Err(e) => {
+                take_signing_error(&signing_errors)?;
+                return Err(DIDError::InternalError(format!(
+                    "Failed to submit message: {e}"
+                )));
+            }
+        };
+        take_signing_error(&signing_errors)?;
 
         let receipt = response
             .get_receipt(client)

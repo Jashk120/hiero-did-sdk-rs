@@ -1,21 +1,21 @@
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
+use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use dotenvy::{from_filename, from_filename_override};
-use hiero_did_core::Signer;
 use hiero_did_client::{
-    HederaClientConfiguration, HederaClientService, HederaCustomNetwork, HederaNetwork, NetworkConfig,
+    HederaClientConfiguration, HederaClientService, HederaCustomNetwork, HederaNetwork,
+    NetworkConfig,
 };
+use hiero_did_core::Signer;
 use hiero_did_hcs::{
-    CreateTopicProps, GetTopicMessagesProps, HcsCacheService, HcsFileService, HcsMessage, 
-    HcsTopic, HederaHcsService, LocalSigner, ResolveFileProps, SubmitFileProps, UpdateTopicProps,
+    CreateTopicProps, GetTopicMessagesProps, HcsCacheService, HcsFileService, HcsMessage, HcsTopic,
+    HederaHcsService, LocalSigner, ResolveFileProps, SubmitFileProps, UpdateTopicProps,
 };
 use hiero_sdk::{AccountId, Client, PrivateKey};
 use std::collections::HashMap;
 use std::env;
 use std::str::FromStr;
-use std::time::{SystemTime, UNIX_EPOCH};
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 use time::OffsetDateTime;
-
 
 const HCS1_MEMO_PATTERN: &str = ":zstd:base64";
 const BASE64_JSON_CONTENT_PREFIX: &str = "data:application/json;base64,";
@@ -78,10 +78,11 @@ async fn resolve_file_with_retries(
 ) -> Result<Vec<u8>, hiero_did_core::DIDError> {
     let mut last_err = None;
     for _ in 0..attempts {
-        match svc.resolve_file(&ResolveFileProps {
-            topic_id: topic_id.clone(),
-        })
-        .await
+        match svc
+            .resolve_file(&ResolveFileProps {
+                topic_id: topic_id.clone(),
+            })
+            .await
         {
             Ok(payload) => return Ok(payload),
             Err(e) => {
@@ -167,7 +168,9 @@ async fn hcs_topic_create_with_memo_visible_via_get_info() {
         .await
         .expect("create_with_memo");
     mirror_wait().await;
-    let info = HcsTopic::get_info(&ctx.client, topic_id).await.expect("get_info");
+    let info = HcsTopic::get_info(&ctx.client, topic_id)
+        .await
+        .expect("get_info");
     assert_eq!(info.topic_memo, memo);
 }
 
@@ -187,7 +190,9 @@ async fn hcs_topic_create_with_props_sets_submit_key() {
     .await
     .expect("create_with_props");
     mirror_wait().await;
-    let info = HcsTopic::get_info(&ctx.client, topic_id).await.expect("get_info");
+    let info = HcsTopic::get_info(&ctx.client, topic_id)
+        .await
+        .expect("get_info");
     assert!(info.submit_key.is_some());
 }
 
@@ -223,10 +228,14 @@ async fn hcs_topic_update_memo_and_delete() {
     )
     .await
     .expect("update");
-    let info = HcsTopic::get_info(&ctx.client, topic_id).await.expect("get_info");
+    let info = HcsTopic::get_info(&ctx.client, topic_id)
+        .await
+        .expect("get_info");
     assert_eq!(info.topic_memo, new_memo);
 
-    HcsTopic::delete(&ctx.client, topic_id).await.expect("delete");
+    HcsTopic::delete(&ctx.client, topic_id)
+        .await
+        .expect("delete");
     mirror_wait().await;
     assert!(HcsTopic::get_info(&ctx.client, topic_id).await.is_err());
 }
@@ -290,18 +299,22 @@ async fn hcs_message_submit_with_submit_key_signer() {
     .await
     .expect("create access-controlled topic");
 
-    assert!(HcsMessage::submit(&ctx.client, topic_id, b"unsigned".to_vec(), None)
-        .await
-        .is_err());
+    assert!(
+        HcsMessage::submit(&ctx.client, topic_id, b"unsigned".to_vec(), None)
+            .await
+            .is_err()
+    );
 
-    assert!(HcsMessage::submit(
-        &ctx.client,
-        topic_id,
-        b"signed".to_vec(),
-        Some(Arc::clone(&submit_signer)),
-    )
-    .await
-    .is_ok());
+    assert!(
+        HcsMessage::submit(
+            &ctx.client,
+            topic_id,
+            b"signed".to_vec(),
+            Some(Arc::clone(&submit_signer)),
+        )
+        .await
+        .is_ok()
+    );
 }
 
 #[tokio::test]
@@ -382,12 +395,13 @@ async fn hcs_file_service_invalid_topic_memo_errors() {
         .await
         .expect("create");
     let svc = HcsFileService::new(&ctx.client, ctx.network_name.clone(), None);
-    assert!(svc
-        .resolve_file(&ResolveFileProps {
+    assert!(
+        svc.resolve_file(&ResolveFileProps {
             topic_id: topic_id.to_string(),
         })
         .await
-        .is_err());
+        .is_err()
+    );
 }
 
 #[tokio::test]
@@ -408,12 +422,13 @@ async fn hcs_file_service_checksum_mismatch_errors() {
     }
     mirror_wait().await;
     let svc = HcsFileService::new(&ctx.client, ctx.network_name.clone(), None);
-    assert!(svc
-        .resolve_file(&ResolveFileProps {
+    assert!(
+        svc.resolve_file(&ResolveFileProps {
             topic_id: topic_id.to_string(),
         })
         .await
-        .is_err());
+        .is_err()
+    );
 }
 
 #[tokio::test]
@@ -442,7 +457,8 @@ async fn hedera_hcs_service_end_to_end_and_network_selection() {
         .expect("messages");
     assert!(!messages.is_empty());
 
-    let dual_client_service = HederaClientService::new(service_config_dual(&ctx)).expect("dual svc");
+    let dual_client_service =
+        HederaClientService::new(service_config_dual(&ctx)).expect("dual svc");
     let dual_svc = HederaHcsService::new(dual_client_service, None);
     let tid_a = dual_svc
         .create_topic(Some(&ctx.network_name))
