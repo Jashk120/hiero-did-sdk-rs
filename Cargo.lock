@@ -1052,6 +1052,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "hiero-did-lifecycle"
+version = "0.1.0"
+dependencies = [
+ "hiero-did-core",
+ "tokio",
+]
+
+[[package]]
 name = "hiero-did-messages"
 version = "0.1.0"
 dependencies = [
