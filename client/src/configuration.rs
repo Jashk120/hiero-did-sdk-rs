@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use hiero_sdk::AccountId;
+use std::collections::HashMap;
 
 /// Named or custom Hedera network.
 #[derive(Debug, Clone)]
@@ -17,7 +17,7 @@ impl HederaNetwork {
             HederaNetwork::Mainnet => "mainnet",
             HederaNetwork::Testnet => "testnet",
             HederaNetwork::Previewnet => "previewnet",
-            HederaNetwork::LocalNode => "localhost",
+            HederaNetwork::LocalNode => "local-node",
             HederaNetwork::Custom(c) => &c.name,
         }
     }

@@ -10,9 +10,10 @@ Rust workspace for creating, updating, deactivating, and resolving `did:hedera` 
 - `hiero-did-signer`: internal Ed25519 sign/verify helpers, plus optional HashiCorp Vault transit signing behind the `vault` feature.
 - `hiero-did-client`: configurable Hedera client service for single or multi-network setups.
 - `hiero-did-hcs`: topic/message/file helpers and higher-level HCS service with optional cache and signer-backed submit/admin key support.
-- `hiero-did-registrar`: DID write operations (`create_did`, `update_did`, `deactivate_did`) plus signer-backed variants for external key custody.
+- `hiero-did-registrar`: DID write operations (`create_did`, `update_did`, `deactivate_did`), signer-backed variants, and client-side message signing (CSM) prepare/submit flows.
 - `hiero-did-resolver`: mirror-node reader + DID document reconstruction + DID URL dereference helpers.
 - `hiero-did-anoncreds`: AnonCreds registry layer on top of HCS.
+- `hiero-did-lifecycle`: generic labeled lifecycle runner for DID operation orchestration, pause/resume boundaries, signing, and externally attached signatures.
 - `hiero-did-sdk`: umbrella crate that re-exports the workspace crates.
 - `scratch`: local binary crate for ad-hoc experiments (not part of SDK surface).
 
@@ -21,6 +22,7 @@ Rust workspace for creating, updating, deactivating, and resolving `did:hedera` 
 - Docs index: [`docs/README.md`](docs/README.md)
 - API reference: [`docs/api-reference.md`](docs/api-reference.md)
 - Create guide: [`docs/create-did.md`](docs/create-did.md)
+- CSM guide: [`docs/csm.md`](docs/csm.md)
 - Dereference guide: [`docs/dereference-did.md`](docs/dereference-did.md)
 - Testing guide: [`docs/testing.md`](docs/testing.md)
 - Architecture notes: [`ARCHITECTURE.md`](ARCHITECTURE.md)
@@ -73,6 +75,7 @@ Run selected integration suites:
 cargo test -p hiero-did-client --test client_service_integration -- --nocapture
 cargo test -p hiero-did-hcs --test integration_hcs -- --nocapture
 cargo test -p hiero-did-registrar --test integration_test -- --nocapture
+cargo test -p hiero-did-registrar --test csm_integration -- --ignored --nocapture
 cargo test -p hiero-did-anoncreds --test integration_anoncreds -- --nocapture
 cargo test -p hiero-did-sdk --test integration_anoncreds -- --nocapture
 ```
@@ -111,7 +114,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## Using the Umbrella Crate
 
 ```rust
-use hiero_did_sdk::{anoncreds, client, core, hcs, messages, method, registrar, resolver, signer};
+use hiero_did_sdk::{
+    anoncreds, client, core, hcs, lifecycle, messages, method, registrar, resolver, signer,
+};
 ```
 
 ## External Signers
@@ -145,8 +150,23 @@ let signer = VaultSigner::new(cfg)?;
 
 For access-controlled HCS topics, `hiero-did-hcs` accepts `Arc<dyn Signer>` submit/admin signers. Signer failures are returned as `DIDError` instead of being converted to empty signatures.
 
+## Client-Side Message Signing
+
+CSM is for clients that cannot give the SDK a signer. The registrar prepares exact message bytes and serializable operation state, the client signs those bytes externally, and the registrar validates and submits the signed envelope.
+
+Supported CSM APIs:
+
+- `prepare_create_did_csm` / `submit_create_did_csm`
+- `prepare_update_did_csm` / `submit_update_did_csm`
+- `prepare_deactivate_did_csm` / `submit_deactivate_did_csm`
+- `_with_options` prepare variants with optional expiry timestamps
+
+CSM submit validates state version, deterministic request ID, exact rebuilt message bytes, optional expiry, Ed25519 signature length, and signature validity against the expected public key before writing to HCS.
+
+See [`docs/csm.md`](docs/csm.md) for examples.
+
 ## Current Boundaries
 
 - Vault-backed signing is feature-gated and uses blocking HTTP internally to fit the synchronous `Signer` trait.
 - Live Vault and live Hedera integration tests require external services and credentials.
-- No generic lifecycle-engine crate equivalent to the JS monorepo `lifecycle` package.
+- CSM live integration coverage is present but ignored by default because it requires Hedera credentials and mirror-node visibility.

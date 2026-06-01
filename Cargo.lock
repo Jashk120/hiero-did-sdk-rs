@@ -1085,6 +1085,8 @@ name = "hiero-did-registrar"
 version = "0.1.0"
 dependencies = [
  "dotenvy",
+ "hex",
+ "hiero-did-client",
  "hiero-did-core",
  "hiero-did-hcs",
  "hiero-did-messages",
@@ -1092,7 +1094,9 @@ dependencies = [
  "hiero-did-signer",
  "hiero-sdk",
  "reqwest",
+ "serde",
  "serde_json",
+ "sha2",
  "thiserror",
  "tokio",
 ]
@@ -1122,6 +1126,7 @@ dependencies = [
  "hiero-did-client",
  "hiero-did-core",
  "hiero-did-hcs",
+ "hiero-did-lifecycle",
  "hiero-did-messages",
  "hiero-did-method",
  "hiero-did-registrar",

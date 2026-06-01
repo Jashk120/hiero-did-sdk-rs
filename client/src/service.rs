@@ -1,9 +1,15 @@
 use hiero_did_core::DIDError;
-use hiero_sdk::{AccountId, Client, Hbar, PrivateKey};
-use std::str::FromStr;
+use hiero_sdk::AccountId;
+use hiero_sdk::Client;
+use hiero_sdk::Hbar;
+use hiero_sdk::PrivateKey;
 use rust_decimal::Decimal;
+use std::collections::HashMap;
+use std::str::FromStr;
 
-use crate::configuration::{HederaClientConfiguration, HederaNetwork, NetworkConfig};
+use crate::configuration::HederaClientConfiguration;
+use crate::configuration::HederaNetwork;
+use crate::configuration::NetworkConfig;
 
 const MAX_TRANSACTION_FEE_HBAR: i64 = 2;
 
@@ -42,7 +48,9 @@ impl HederaClientService {
             ));
         }
 
-        Ok(Self { configuration: config })
+        Ok(Self {
+            configuration: config,
+        })
     }
 
     /// Build and return a configured client for the given network name.
@@ -75,9 +83,7 @@ impl HederaClientService {
         network_name: Option<&str>,
     ) -> Result<&NetworkConfig, DIDError> {
         match network_name {
-            None if self.configuration.networks.len() == 1 => {
-                Ok(&self.configuration.networks[0])
-            }
+            None if self.configuration.networks.len() == 1 => Ok(&self.configuration.networks[0]),
             None => Err(DIDError::InvalidArgument(
                 "network_name required when multiple networks are configured".into(),
             )),
@@ -85,10 +91,8 @@ impl HederaClientService {
                 .configuration
                 .networks
                 .iter()
-                .find(|n| n.network.name() == name)
-                .ok_or_else(|| {
-                    DIDError::InvalidArgument(format!("Unknown network: {name}"))
-                }),
+                .find(|n| network_name_matches(&n.network, name))
+                .ok_or_else(|| DIDError::InvalidArgument(format!("Unknown network: {name}"))),
         }
     }
 
@@ -102,13 +106,28 @@ impl HederaClientService {
             HederaNetwork::Mainnet => Client::for_mainnet(),
             HederaNetwork::Testnet => Client::for_testnet(),
             HederaNetwork::Previewnet => Client::for_previewnet(),
-            HederaNetwork::LocalNode => Client::for_name("localhost")
-                .map_err(|e| DIDError::InternalError(format!("Failed to build local client: {e}")))?,
+            HederaNetwork::LocalNode => {
+                let node_addr = std::env::var("HEDERA_NODE_ADDRESS")
+                    .unwrap_or_else(|_| "127.0.0.1:35211".to_string());
+                let mirror_addr = std::env::var("HEDERA_MIRROR_NODE_ADDRESS")
+                    .unwrap_or_else(|_| "127.0.0.1:5600".to_string());
+                let mut nodes = HashMap::new();
+                nodes.insert(
+                    node_addr,
+                    AccountId::from_str("0.0.3").map_err(|e| {
+                        DIDError::InvalidArgument(format!("Invalid node account: {e}"))
+                    })?,
+                );
+                let client = Client::for_network(nodes).map_err(|e| {
+                    DIDError::InternalError(format!("Failed to build local client: {e}"))
+                })?;
+                client.set_mirror_network(vec![mirror_addr]);
+                client
+            }
             HederaNetwork::Custom(custom) => {
-                let client = Client::for_network(custom.nodes.clone())
-                    .map_err(|e| {
-                        DIDError::InternalError(format!("Failed to build custom client: {e}"))
-                    })?;
+                let client = Client::for_network(custom.nodes.clone()).map_err(|e| {
+                    DIDError::InternalError(format!("Failed to build custom client: {e}"))
+                })?;
                 if let Some(mirror_nodes) = &custom.mirror_nodes {
                     client.set_mirror_network(mirror_nodes.clone());
                 }
@@ -121,4 +140,12 @@ impl HederaClientService {
 
         Ok(client)
     }
+}
+
+fn network_name_matches(network: &HederaNetwork, name: &str) -> bool {
+    network.name() == name
+        || matches!(
+            (network, name),
+            (HederaNetwork::LocalNode, "local" | "localhost")
+        )
 }

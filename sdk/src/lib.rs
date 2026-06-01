@@ -1,7 +1,8 @@
-pub use hiero_did_core as core;
 pub use hiero_did_anoncreds as anoncreds;
 pub use hiero_did_client as client;
+pub use hiero_did_core as core;
 pub use hiero_did_hcs as hcs;
+pub use hiero_did_lifecycle as lifecycle;
 pub use hiero_did_messages as messages;
 pub use hiero_did_method as method;
 pub use hiero_did_registrar as registrar;

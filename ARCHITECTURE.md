@@ -5,10 +5,12 @@
 This Rust workspace currently provides:
 
 - DID write operations: create, update, deactivate (`registrar`).
+- Client-side message signing prepare/submit flows for DID writes (`registrar::csm`).
 - DID resolution from topic history (`resolver`).
 - DID URL dereference for resolved documents/resources (`resolver` + `core::did_url`).
 - Hedera client configuration (`client`) and HCS topic/message/file operations (`hcs`).
 - Shared DID/domain primitives (`core`, `method`, `messages`, `signer`).
+- Generic lifecycle orchestration primitives (`lifecycle`).
 - AnonCreds registry operations on top of HCS (`anoncreds`).
 - A convenience re-export layer (`sdk`).
 - A local scratch binary crate for experiments (`scratch`).
@@ -30,6 +32,7 @@ Crates in `Cargo.toml`:
 - `hiero-did-registrar`
 - `hiero-did-resolver`
 - `hiero-did-anoncreds`
+- `hiero-did-lifecycle`
 - `hiero-did-sdk` (re-export layer)
 - `scratch` (local binary crate; not part of SDK surface)
 
@@ -42,6 +45,7 @@ hiero-did-sdk (re-export only)
         |         |            |
         |         +--> messages|
         |         +--> signer  |
+        |         +--> lifecycle
         |         +------------+
         |
         +--> resolver ------> messages -----> core
@@ -50,6 +54,7 @@ hiero-did-sdk (re-export only)
         |
         +--> anoncreds -----> hcs ----------> client -----> core
         |
+        +--> lifecycle -----> core
         +--> method --------> core
         +--> signer --------> core
         +--> client --------> core
@@ -133,11 +138,27 @@ DID write orchestration:
 - `update::update_did_with_signer(client, did, signer, updates)`
 - `deactivate::deactivate_did(client, did, private_key_bytes)`
 - `deactivate::deactivate_did_with_signer(client, did, signer)`
+- `csm::prepare_create_did_csm(...)` / `csm::submit_create_did_csm(...)`
+- `csm::prepare_update_did_csm(...)` / `csm::submit_update_did_csm(...)`
+- `csm::prepare_deactivate_did_csm(...)` / `csm::submit_deactivate_did_csm(...)`
+- `_with_options` CSM prepare variants support optional expiry timestamps.
 
 The update path supports verification method and service add/remove operations via `DIDUpdateOperation`.
 The `*_with_signer` APIs accept any `core::Signer`, including `InternalSigner` and feature-gated `VaultSigner`.
+The CSM APIs prepare exact message bytes and serializable operation state for external signing, then validate and submit externally signed envelopes.
 
-### 3.8 `hiero-did-resolver`
+### 3.8 `hiero-did-lifecycle`
+
+Generic linear lifecycle runner:
+
+- `LifecycleBuilder` defines labeled callback, signer-sign, attach-signature, and pause steps.
+- `LifecycleRunner` executes the pipeline and resumes from pause states.
+- `RunnerState` carries `Success`, `Pause`, or `Error` status plus the mutable message.
+- `LifecycleMessage` abstracts operation messages that can expose bytes to sign and accept a signature.
+
+The crate is DID-domain neutral. Registrar CSM currently uses lifecycle-compatible labels and state boundaries; concrete registrar flows still own Hedera message construction and submission.
+
+### 3.9 `hiero-did-resolver`
 
 Resolution orchestration:
 
@@ -152,7 +173,7 @@ Resolution orchestration:
   - matching service (`DereferencedResource::Service`)
 - Current implementation is exposed as `resolver::mirror`, `resolver::builder`, and `resolver::dereference`.
 
-### 3.9 `hiero-did-anoncreds`
+### 3.10 `hiero-did-anoncreds`
 
 AnonCreds registry layer on top of HCS service:
 
@@ -164,13 +185,13 @@ AnonCreds registry layer on top of HCS service:
 - `types` module for AnonCreds payload models and HCS metadata.
 - `utils` module for identifier building/parsing and revocation entry pack/unpack/diff helpers.
 
-### 3.10 `hiero-did-sdk`
+### 3.11 `hiero-did-sdk`
 
 Convenience import surface by re-exporting:
 
-- `core`, `method`, `messages`, `signer`, `client`, `hcs`, `registrar`, `resolver`, `anoncreds`.
+- `core`, `method`, `messages`, `signer`, `client`, `hcs`, `registrar`, `resolver`, `anoncreds`, `lifecycle`.
 
-### 3.11 `scratch`
+### 3.12 `scratch`
 
 Local binary crate used for ad-hoc experiments:
 
@@ -221,7 +242,40 @@ Notes:
 4. Submit signed envelope to DID topic.
 5. Return tombstoned document metadata payload.
 
-### 4.4 Resolve DID
+### 4.4 Client-Side Message Signing
+
+CSM is used when the SDK must not call a signer directly.
+
+Prepare flow:
+
+1. Build the create/update/deactivate DID message.
+2. Compute the exact `message_bytes` to sign.
+3. Build `CsmOperationState` with:
+- state version
+- deterministic request ID
+- DID, topic ID, operation, and lifecycle label
+- optional expiry timestamp
+- expected public key bytes
+- exact message bytes and message state
+4. Return `CsmSigningRequest` or `CsmBatchSigningRequest`.
+
+External client flow:
+
+1. Sign each `message_bytes` value outside the SDK.
+2. Convert the request into `CsmSubmitRequest` or `CsmBatchSubmitRequest`.
+
+Submit flow:
+
+1. Validate state version and deterministic request ID.
+2. Rebuild message bytes and compare against preserved bytes.
+3. Reject expired requests when `expires_at_unix` is set.
+4. Verify the 64-byte Ed25519 signature against the expected public key.
+5. Build the signed `HcsEnvelope`.
+6. Submit to the DID topic.
+
+Create CSM creates the HCS topic during prepare because the topic ID is part of the DID and owner message. Update CSM returns one signing request per update operation and submits signed operations in order.
+
+### 4.5 Resolve DID
 
 1. Fetch topic message history from mirror node.
 2. Decode envelopes and filter by target DID.
@@ -230,7 +284,7 @@ Notes:
 5. Apply owner/update/service events; treat `operation == "delete"` as deactivation.
 6. Emit `DIDResolution` with metadata.
 
-### 4.5 HCS Service Usage
+### 4.6 HCS Service Usage
 
 1. Build `HederaClientConfiguration`.
 2. Create `HederaClientService`.
@@ -238,7 +292,7 @@ Notes:
 4. Use `HederaHcsService` for topic/message/file operations by network name.
 5. For access-controlled topics, pass `Arc<dyn Signer>` submit/admin signers. HCS captures signer failures and returns the original `DIDError`.
 
-### 4.6 Dereference DID URL
+### 4.7 Dereference DID URL
 
 1. Parse DID URL into `HederaDidUrl`.
 2. Obtain topic messages for the DID topic (typically via `MirrorNodeClient`).
@@ -246,7 +300,7 @@ Notes:
 4. If URL has no fragment, return full `DIDDocument`.
 5. If URL has a fragment, match `did#fragment` against verification methods and services.
 
-### 4.7 AnonCreds Registry Usage
+### 4.8 AnonCreds Registry Usage
 
 1. Build `HederaClientService` and `HederaHcsService`.
 2. Construct `HederaAnonCredsRegistry`.
@@ -271,6 +325,7 @@ All crates map failures to `hiero_did_core::DIDError` variants:
 - `client/tests/client_service_integration.rs`
 - `hcs/tests/integration_hcs.rs`
 - `registrar/tests/integration_test.rs`
+- `registrar/tests/csm_integration.rs` (ignored by default; live Hedera + mirror-node flow)
 - `anoncreds/tests/integration_anoncreds.rs`
 - `sdk/tests/integration_anoncreds.rs`
 - `sdk/tests/reexports.rs`
@@ -279,11 +334,10 @@ All crates map failures to `hiero_did_core::DIDError` variants:
 
 The following are not yet implemented as first-class Rust workspace features:
 
-- Generic lifecycle engine package equivalent to JS `lifecycle`.
 - Separate `publisher-internal` crate/surface (publishing is currently handled directly through HCS operations in existing crates).
 
 Current caveats:
 
 - Vault signing is feature-gated in `hiero-did-signer` behind the `vault` feature.
 - Vault HTTP calls are currently implemented with `reqwest::blocking` to satisfy the synchronous `core::Signer` trait.
-- Live Vault and live Hedera integration coverage still require external services and credentials.
+- Live Vault, live Hedera, and CSM end-to-end integration coverage still require external services, credentials, and mirror-node visibility.

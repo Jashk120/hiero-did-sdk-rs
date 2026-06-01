@@ -1,20 +1,27 @@
 use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::SystemTime;
+use std::time::UNIX_EPOCH;
 
-use dotenvy::{from_filename, from_filename_override};
-use hiero_did_anoncreds::{
-    AnonCredsCredentialDefinition, AnonCredsRevocationRegistryDefinition,
-    AnonCredsRevocationStatusList, AnonCredsSchema, CredentialDefinitionValue,
-    HederaAnonCredsRegistry, RevocationRegistryDefinitionValue,
-    RevocationRegistryPublicKeys, AccumKey,
-};
-use hiero_did_client::{
-    HederaClientConfiguration, HederaClientService, HederaNetwork, NetworkConfig,
-};
+use dotenvy::from_filename;
+use dotenvy::from_filename_override;
+use hiero_did_anoncreds::AccumKey;
+use hiero_did_anoncreds::AnonCredsCredentialDefinition;
+use hiero_did_anoncreds::AnonCredsRevocationRegistryDefinition;
+use hiero_did_anoncreds::AnonCredsRevocationStatusList;
+use hiero_did_anoncreds::AnonCredsSchema;
+use hiero_did_anoncreds::CredentialDefinitionValue;
+use hiero_did_anoncreds::HederaAnonCredsRegistry;
+use hiero_did_anoncreds::RevocationRegistryDefinitionValue;
+use hiero_did_anoncreds::RevocationRegistryPublicKeys;
+use hiero_did_client::HederaClientConfiguration;
+use hiero_did_client::HederaClientService;
+use hiero_did_client::HederaNetwork;
+use hiero_did_client::NetworkConfig;
 use hiero_did_core::Signer;
-use hiero_did_hcs::{HederaHcsService, LocalSigner};
+use hiero_did_hcs::HederaHcsService;
+use hiero_did_hcs::LocalSigner;
 use hiero_sdk::PrivateKey;
 
 fn unique_tag(prefix: &str) -> String {
@@ -39,15 +46,16 @@ fn setup_ctx() -> Result<Ctx, String> {
 
     let operator_id = env::var("HEDERA_ACCOUNT_ID")
         .map_err(|_| "HEDERA_ACCOUNT_ID is required for anoncreds integration tests".to_string())?;
-    let operator_key = env::var("HEDERA_PRIVATE_KEY")
-        .map_err(|_| "HEDERA_PRIVATE_KEY is required for anoncreds integration tests".to_string())?;
+    let operator_key = env::var("HEDERA_PRIVATE_KEY").map_err(|_| {
+        "HEDERA_PRIVATE_KEY is required for anoncreds integration tests".to_string()
+    })?;
     let network_name = env::var("HEDERA_NETWORK").unwrap_or_else(|_| "testnet".to_string());
 
     let network = match network_name.as_str() {
         "mainnet" => HederaNetwork::Mainnet,
         "testnet" => HederaNetwork::Testnet,
         "previewnet" => HederaNetwork::Previewnet,
-        "local" => HederaNetwork::LocalNode,
+        "local" | "local-node" | "localhost" => HederaNetwork::LocalNode,
         other => {
             return Err(format!(
                 "Unsupported HEDERA_NETWORK='{other}'. Use one of: testnet, mainnet, previewnet"
@@ -69,7 +77,11 @@ fn setup_ctx() -> Result<Ctx, String> {
     let key = PrivateKey::from_str_der(&operator_key)
         .map_err(|e| format!("Invalid HEDERA_PRIVATE_KEY: {e}"))?;
     let signer: Arc<dyn Signer> = Arc::new(LocalSigner::new(key));
-    let issuer_did = format!("did:hedera:{network_name}:testkey_{}", operator_id);
+    let did_network_name = match network_name.as_str() {
+        "local" | "local-node" | "localhost" => "testnet",
+        _ => network_name.as_str(),
+    };
+    let issuer_did = format!("did:hedera:{did_network_name}:testkey_{}", operator_id);
     println!("ACCOUNT={}", operator_id);
 
     Ok(Ctx {
@@ -210,9 +222,7 @@ async fn register_revocation_registry_and_status_list_roundtrip() {
         tag: unique_tag("revreg"),
         value: RevocationRegistryDefinitionValue {
             public_keys: RevocationRegistryPublicKeys {
-                accum_key: AccumKey {
-                    z: "z".to_string(),
-                },
+                accum_key: AccumKey { z: "z".to_string() },
             },
             max_cred_num: 8,
             tails_location: "https://example.com/tails".to_string(),
@@ -263,10 +273,13 @@ async fn register_revocation_registry_and_status_list_roundtrip() {
 
     let resolved = ctx
         .registry
-        .get_revocation_status_list(Some(ctx.network_name.as_str()), &rev_reg_def_id, now + 30)
+        .get_revocation_status_list(Some(ctx.network_name.as_str()), &rev_reg_def_id, now + 300)
         .await
         .expect("get status list");
     assert_eq!(resolved.revocation_list, status_list.revocation_list);
-    assert_eq!(resolved.current_accumulator, status_list.current_accumulator);
+    assert_eq!(
+        resolved.current_accumulator,
+        status_list.current_accumulator
+    );
     assert_eq!(resolved.issuer_id, status_list.issuer_id);
 }

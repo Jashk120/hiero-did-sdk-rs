@@ -1,7 +1,10 @@
-use dotenvy::{from_filename, from_filename_override};
-use hiero_did_client::{
-    HederaClientConfiguration, HederaClientService, HederaNetwork, NetworkConfig,
-};
+use dotenvy::from_filename;
+use dotenvy::from_filename_override;
+use hiero_did_client::HederaClientConfiguration;
+use hiero_did_client::HederaClientService;
+use hiero_did_client::HederaNetwork;
+use hiero_did_client::NetworkConfig;
+use hiero_sdk::PrivateKey;
 use std::env;
 
 fn env_or_skip(name: &str) -> Option<String> {
@@ -19,7 +22,7 @@ fn test_config_single() -> Option<HederaClientConfiguration> {
         "testnet" => HederaNetwork::Testnet,
         "mainnet" => HederaNetwork::Mainnet,
         "previewnet" => HederaNetwork::Previewnet,
-        "localhost" => HederaNetwork::LocalNode,
+        "local" | "local-node" | "localhost" => HederaNetwork::LocalNode,
         _ => HederaNetwork::Testnet,
     };
 
@@ -84,4 +87,31 @@ async fn with_client_runs_operation() {
         .expect("operation should succeed");
 
     assert!(operator.is_some());
+}
+
+#[test]
+fn local_node_network_uses_local_defaults_and_aliases() {
+    let operator_key = PrivateKey::generate_ed25519().to_string_der();
+    let expected_node =
+        env::var("HEDERA_NODE_ADDRESS").unwrap_or_else(|_| "127.0.0.1:35211".to_string());
+    let expected_mirror =
+        env::var("HEDERA_MIRROR_NODE_ADDRESS").unwrap_or_else(|_| "127.0.0.1:5600".to_string());
+    let svc = HederaClientService::new(HederaClientConfiguration {
+        networks: vec![NetworkConfig {
+            network: HederaNetwork::LocalNode,
+            operator_id: "0.0.2".to_string(),
+            operator_key,
+        }],
+    })
+    .expect("service should build");
+
+    for alias in ["local-node", "localhost", "local"] {
+        let client = svc.get_client(Some(alias)).expect("client should build");
+        assert!(client.network().contains_key(&expected_node));
+        assert_eq!(client.mirror_network(), vec![expected_mirror.clone()]);
+        assert_eq!(
+            client.get_operator_account_id().map(|id| id.to_string()),
+            Some("0.0.2".to_string())
+        );
+    }
 }

@@ -16,9 +16,13 @@ hiero-did-signer = { version = "0.1.0", path = "../signer" }
 hiero-sdk = { workspace = true }
 tokio = { workspace = true }
 thiserror = { workspace = true }
+serde.workspace = true
+sha2 = { workspace = true }
+hex = { workspace = true }
 
 [dev-dependencies]
 dotenvy = "0.15.7"
+hiero-did-client = { version = "0.1.0", path = "../client" }
 hiero-did-resolver = { version = "0.1.0", path = "../resolver" }
 reqwest = { workspace = true }
 serde_json = { workspace = true }

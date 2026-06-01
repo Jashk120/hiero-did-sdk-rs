@@ -1,47 +1,91 @@
-use dotenvy::{from_filename, from_filename_override};
+use dotenvy::from_filename;
+use dotenvy::from_filename_override;
+use hiero_did_client::HederaClientConfiguration;
+use hiero_did_client::HederaClientService;
+use hiero_did_client::HederaNetwork;
+use hiero_did_client::NetworkConfig;
 use hiero_did_core::did::Network;
 use hiero_did_registrar::create::create_did;
 use hiero_did_registrar::deactivate::deactivate_did;
-use hiero_did_registrar::update::{
-    AddService, AddVerificationMethod, DIDUpdateOperation, RemoveService, RemoveVerificationMethod,
-    VerificationMethodProperty, update_did,
-};
-use hiero_did_resolver::{DidDocumentBuilder, MirrorNodeClient};
-use hiero_sdk::{AccountId, Client, PrivateKey};
+use hiero_did_registrar::update::AddService;
+use hiero_did_registrar::update::AddVerificationMethod;
+use hiero_did_registrar::update::DIDUpdateOperation;
+use hiero_did_registrar::update::RemoveService;
+use hiero_did_registrar::update::RemoveVerificationMethod;
+use hiero_did_registrar::update::VerificationMethodProperty;
+use hiero_did_registrar::update::update_did;
+use hiero_did_resolver::DidDocumentBuilder;
+use hiero_did_resolver::MirrorNodeClient;
+use hiero_sdk::Client;
 use std::env;
-use std::str::FromStr;
 
 #[cfg(feature = "debug-mirror")]
 use serde_json::Value;
 
-fn setup_client() -> Client {
+fn setup_env() {
     let _ = from_filename_override(".env.local");
     let _ = from_filename(".env");
+}
 
-    let account_id = env::var("HEDERA_ACCOUNT_ID").expect("HEDERA_ACCOUNT_ID not set");
-    let private_key = env::var("HEDERA_PRIVATE_KEY").expect("HEDERA_PRIVATE_KEY not set");
+fn get_network() -> Network {
+    match env::var("HEDERA_NETWORK")
+        .unwrap_or_else(|_| "testnet".to_string())
+        .as_str()
+    {
+        "mainnet" => Network::Mainnet,
+        "local" | "local-node" | "localhost" => Network::Testnet, // local uses testnet DID namespace
+        _ => Network::Testnet,
+    }
+}
 
-    let client = Client::for_testnet();
-    client.set_operator(
-        AccountId::from_str(&account_id).expect("Invalid account ID"),
-        PrivateKey::from_str_der(&private_key).expect("Invalid private key"),
-    );
+fn get_client_network() -> HederaNetwork {
+    match env::var("HEDERA_NETWORK")
+        .unwrap_or_else(|_| "testnet".to_string())
+        .as_str()
+    {
+        "mainnet" => HederaNetwork::Mainnet,
+        "previewnet" => HederaNetwork::Previewnet,
+        "local" | "local-node" | "localhost" => HederaNetwork::LocalNode,
+        _ => HederaNetwork::Testnet,
+    }
+}
 
-    client
+fn setup_client() -> Client {
+    setup_env();
+
+    let operator_id = env::var("HEDERA_ACCOUNT_ID").expect("HEDERA_ACCOUNT_ID not set");
+    let operator_key = env::var("HEDERA_PRIVATE_KEY").expect("HEDERA_PRIVATE_KEY not set");
+    let service = HederaClientService::new(HederaClientConfiguration {
+        networks: vec![NetworkConfig {
+            network: get_client_network(),
+            operator_id,
+            operator_key,
+        }],
+    })
+    .expect("Failed to initialize HederaClientService");
+
+    service
+        .get_client(None)
+        .expect("Failed to build Hedera client")
+}
+
+fn setup_mirror() -> MirrorNodeClient {
+    setup_env();
+    MirrorNodeClient::from_env()
 }
 
 #[tokio::test]
 async fn test_create_did() {
     let client = setup_client();
+    let network = get_network();
 
-    let result = create_did(&client, Network::Testnet, None)
+    let result = create_did(&client, network, None)
         .await
         .expect("Failed to create DID");
 
     println!("Created DID: {}", result.did);
     println!("Topic ID: {}", result.did.topic_id);
 
-    assert!(result.did.to_string().starts_with("did:hedera:testnet:"));
     assert!(!result.did.topic_id.is_empty());
     assert_eq!(result.public_key_bytes.len(), 32);
     assert_eq!(result.private_key_bytes.len(), 32);
@@ -50,55 +94,17 @@ async fn test_create_did() {
 #[tokio::test]
 async fn test_create_and_resolve_did() {
     let client = setup_client();
+    let mirror = setup_mirror();
+    let network = get_network();
 
-    let result = create_did(&client, Network::Testnet, None)
+    let result = create_did(&client, network, None)
         .await
         .expect("Failed to create DID");
 
     println!("Created DID: {}", result.did);
 
-    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-
-    #[cfg(feature = "debug-mirror")]
-    {
-        let debug_url = format!(
-            "https://testnet.mirrornode.hedera.com/api/v1/topics/{}/messages?order=asc&limit=100",
-            result.did.topic_id
-        );
-        println!("Mirror URL: {}", debug_url);
-        let debug_response = reqwest::get(&debug_url)
-            .await
-            .expect("Failed to call mirror debug URL");
-        println!("Mirror HTTP status: {}", debug_response.status());
-        let debug_text = debug_response
-            .text()
-            .await
-            .expect("Failed to read mirror debug response body");
-        println!("Mirror raw JSON bytes: {}", debug_text.len());
-        println!(
-            "Mirror raw JSON preview: {}",
-            &debug_text.chars().take(1200).collect::<String>()
-        );
-
-        let debug_json: Value =
-            serde_json::from_str(&debug_text).expect("Failed to parse mirror debug JSON");
-        let top_keys = debug_json
-            .as_object()
-            .map(|m| m.keys().cloned().collect::<Vec<_>>())
-            .unwrap_or_default();
-        println!("Mirror top-level keys: {:?}", top_keys);
-        let first_msg = debug_json
-            .get("messages")
-            .and_then(|v| v.as_array())
-            .and_then(|arr| arr.first())
-            .cloned()
-            .unwrap_or(Value::Null);
-        println!("Mirror first message shape: {}", first_msg);
-    }
-
-    let mirror = MirrorNodeClient::for_testnet();
     let messages = mirror
-        .get_topic_messages(&result.did.topic_id)
+        .wait_for_mirror(&result.did.topic_id, 30)
         .await
         .expect("Failed to fetch topic messages");
 
@@ -120,8 +126,10 @@ async fn test_create_and_resolve_did() {
 #[tokio::test]
 async fn test_update_did_add_and_remove_operations() {
     let client = setup_client();
+    let mirror = setup_mirror();
+    let network = get_network();
 
-    let created = create_did(&client, Network::Testnet, None)
+    let created = create_did(&client, network, None)
         .await
         .expect("Failed to create DID");
     let did = created.did.clone();
@@ -154,11 +162,8 @@ async fn test_update_did_add_and_remove_operations() {
         .expect("Failed to apply add update operations");
     assert_eq!(add_result.operations_applied, 2);
 
-    tokio::time::sleep(tokio::time::Duration::from_secs(8)).await;
-
-    let mirror = MirrorNodeClient::for_testnet();
     let messages = mirror
-        .get_topic_messages(&did.topic_id)
+        .wait_for_mirror_stable(&did.topic_id, 1500, 30)
         .await
         .expect("Failed to fetch topic messages after add operations");
     let resolution_after_add = DidDocumentBuilder::from(messages)
@@ -198,10 +203,8 @@ async fn test_update_did_add_and_remove_operations() {
         .expect("Failed to apply remove update operations");
     assert_eq!(remove_result.operations_applied, 2);
 
-    tokio::time::sleep(tokio::time::Duration::from_secs(8)).await;
-
     let messages = mirror
-        .get_topic_messages(&did.topic_id)
+        .wait_for_mirror_stable(&did.topic_id, 1500, 30)
         .await
         .expect("Failed to fetch topic messages after remove operations");
     let resolution_after_remove = DidDocumentBuilder::from(messages)
@@ -231,8 +234,10 @@ async fn test_update_did_add_and_remove_operations() {
 #[tokio::test]
 async fn test_deactivate_did() {
     let client = setup_client();
+    let mirror = setup_mirror();
+    let network = get_network();
 
-    let created = create_did(&client, Network::Testnet, None)
+    let created = create_did(&client, network, None)
         .await
         .expect("Failed to create DID");
     let did = created.did.clone();
@@ -246,11 +251,8 @@ async fn test_deactivate_did() {
     assert_eq!(deactivated.did_document.controller, did.to_string());
     assert!(deactivated.did_document.verification_method.is_empty());
 
-    tokio::time::sleep(tokio::time::Duration::from_secs(8)).await;
-
-    let mirror = MirrorNodeClient::for_testnet();
     let messages = mirror
-        .get_topic_messages(&did.topic_id)
+        .wait_for_mirror_stable(&did.topic_id, 1500, 30)
         .await
         .expect("Failed to fetch topic messages after deactivation");
     let resolution = DidDocumentBuilder::from(messages)

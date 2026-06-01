@@ -1,10 +1,42 @@
 pub mod create;
+pub mod csm;
 pub mod deactivate;
 pub mod update;
 
-pub use create::{CreateDIDResult, CreateDIDWithSignerResult, create_did_with_signer};
-pub use deactivate::{DeactivateDIDResult, DeactivatedDIDDocument, deactivate_did_with_signer};
-pub use update::{
-    AddService, AddVerificationMethod, DIDUpdateOperation, HcsSignable, RemoveService,
-    RemoveVerificationMethod, UpdateDIDResult, VerificationMethodProperty, update_did_with_signer,
-};
+pub use create::CreateDIDResult;
+pub use create::CreateDIDWithSignerResult;
+pub use create::create_did_with_signer;
+pub use csm::CSM_STATE_VERSION;
+pub use csm::CsmBatchSigningRequest;
+pub use csm::CsmBatchSubmitRequest;
+pub use csm::CsmBatchSubmitResult;
+pub use csm::CsmMessageState;
+pub use csm::CsmOperationState;
+pub use csm::CsmPrepareOptions;
+pub use csm::CsmSignature;
+pub use csm::CsmSigningRequest;
+pub use csm::CsmSubmitRequest;
+pub use csm::CsmSubmitResult;
+pub use csm::PAUSE_BEFORE_PUBLISH_LABEL;
+pub use csm::PAUSE_FOR_SIGNATURE_LABEL;
+pub use csm::prepare_create_did_csm;
+pub use csm::prepare_create_did_csm_with_options;
+pub use csm::prepare_deactivate_did_csm;
+pub use csm::prepare_deactivate_did_csm_with_options;
+pub use csm::prepare_update_did_csm;
+pub use csm::prepare_update_did_csm_with_options;
+pub use csm::submit_create_did_csm;
+pub use csm::submit_deactivate_did_csm;
+pub use csm::submit_update_did_csm;
+pub use deactivate::DeactivateDIDResult;
+pub use deactivate::DeactivatedDIDDocument;
+pub use deactivate::deactivate_did_with_signer;
+pub use update::AddService;
+pub use update::AddVerificationMethod;
+pub use update::DIDUpdateOperation;
+pub use update::HcsSignable;
+pub use update::RemoveService;
+pub use update::RemoveVerificationMethod;
+pub use update::UpdateDIDResult;
+pub use update::VerificationMethodProperty;
+pub use update::update_did_with_signer;

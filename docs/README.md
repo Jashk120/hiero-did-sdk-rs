@@ -12,6 +12,7 @@ Focused guides for working with this SDK workspace.
 
 - [`api-reference.md`](./api-reference.md): public API summary by crate.
 - [`create-did.md`](./create-did.md): local-key and external-signer create flows plus related write-operation context.
+- [`csm.md`](./csm.md): client-side message signing prepare/sign/submit flow.
 - [`dereference-did.md`](./dereference-did.md): DID URL parse + dereference flow.
 - [`testing.md`](./testing.md): local checks, feature-gated Vault signer checks, and networked integration test setup.
 

@@ -12,6 +12,7 @@ hiero-did-anoncreds = { path = "../anoncreds" }
 hiero-did-client = { path = "../client" }
 hiero-did-core = { path = "../core" }
 hiero-did-hcs = { path = "../hcs" }
+hiero-did-lifecycle = { path = "../lifecycle" }
 hiero-did-method = { path = "../method" }
 hiero-did-messages = { path = "../messages" }
 hiero-did-registrar = { path = "../registrar" }
