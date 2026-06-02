@@ -249,7 +249,7 @@ impl HederaAnonCredsRegistry {
                     to_time: Some(time::OffsetDateTime::from_unix_timestamp(timestamp as i64)
                         .map_err(|e| DIDError::InvalidArgument(format!("Invalid timestamp: {e}")))?),
                     limit: None,
-                    max_idle_seconds: Some(20),
+                    max_idle_seconds: Some(5),
                 },
             )
             .await?;

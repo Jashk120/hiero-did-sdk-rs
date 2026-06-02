@@ -78,7 +78,7 @@ fn setup_ctx() -> Result<Ctx, String> {
         .map_err(|e| format!("Invalid HEDERA_PRIVATE_KEY: {e}"))?;
     let signer: Arc<dyn Signer> = Arc::new(LocalSigner::new(key));
     let did_network_name = match network_name.as_str() {
-        "local" | "local-node" | "localhost" => "testnet",
+        "local" | "local-node" | "localhost" => "local",
         _ => network_name.as_str(),
     };
     let issuer_did = format!("did:hedera:{did_network_name}:testkey_{}", operator_id);

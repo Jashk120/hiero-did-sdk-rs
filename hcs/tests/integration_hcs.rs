@@ -49,15 +49,24 @@ fn setup_ctx() -> Option<EnvCtx> {
     let operator_key = env::var("HEDERA_PRIVATE_KEY").ok()?;
     let network_name = env::var("HEDERA_NETWORK").unwrap_or_else(|_| "testnet".to_string());
 
-    let client = match network_name.as_str() {
-        "mainnet" => Client::for_mainnet(),
-        "previewnet" => Client::for_previewnet(),
-        _ => Client::for_testnet(),
+    let network = match network_name.as_str() {
+        "mainnet" => HederaNetwork::Mainnet,
+        "testnet" => HederaNetwork::Testnet,
+        "previewnet" => HederaNetwork::Previewnet,
+        "local" | "local-node" | "localhost" => HederaNetwork::LocalNode,
+        _ => return None,
     };
-    client.set_operator(
-        AccountId::from_str(&operator_id).ok()?,
-        PrivateKey::from_str_der(&operator_key).ok()?,
-    );
+
+    let config = HederaClientConfiguration {
+        networks: vec![NetworkConfig {
+            network,
+            operator_id: operator_id.clone(),
+            operator_key: operator_key.clone(),
+        }],
+    };
+
+    let client_service = HederaClientService::new(config).ok()?;
+    let client = client_service.get_client(None).ok()?;
 
     Some(EnvCtx {
         client,
@@ -109,7 +118,7 @@ fn service_config_single(ctx: &EnvCtx) -> HederaClientConfiguration {
     let network = match ctx.network_name.as_str() {
         "mainnet" => HederaNetwork::Mainnet,
         "previewnet" => HederaNetwork::Previewnet,
-        "localhost" => HederaNetwork::LocalNode,
+        "local" | "local-node" | "localhost" => HederaNetwork::LocalNode,
         _ => HederaNetwork::Testnet,
     };
     HederaClientConfiguration {
@@ -125,7 +134,7 @@ fn service_config_dual(ctx: &EnvCtx) -> HederaClientConfiguration {
     let primary = match ctx.network_name.as_str() {
         "mainnet" => HederaNetwork::Mainnet,
         "previewnet" => HederaNetwork::Previewnet,
-        "localhost" => HederaNetwork::LocalNode,
+        "local" | "local-node" | "localhost" => HederaNetwork::LocalNode,
         _ => HederaNetwork::Testnet,
     };
     let nodes: HashMap<String, AccountId> = ctx.client.network();

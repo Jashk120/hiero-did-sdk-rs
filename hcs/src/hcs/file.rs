@@ -171,7 +171,7 @@ impl<'a> HcsFileService<'a> {
                 from_time: Some(OffsetDateTime::UNIX_EPOCH),
                 to_time: None,
                 limit: None,
-                max_idle_seconds: Some(20),
+                max_idle_seconds: Some(2),
             },
         )
         .await?;

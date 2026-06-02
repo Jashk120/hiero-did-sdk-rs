@@ -7,6 +7,8 @@ pub const DID_METHOD: &str = "hedera";
 pub enum Network {
     Mainnet,
     Testnet,
+    Previewnet,
+    Local,
 }
 
 impl std::fmt::Display for Network {
@@ -14,6 +16,8 @@ impl std::fmt::Display for Network {
         match self {
             Network::Mainnet => write!(f, "mainnet"),
             Network::Testnet => write!(f, "testnet"),
+            Network::Previewnet => write!(f, "previewnet"),
+            Network::Local => write!(f, "local"),
         }
     }
 }
@@ -25,6 +29,8 @@ impl std::str::FromStr for Network {
         match s {
             "mainnet" => Ok(Network::Mainnet),
             "testnet" => Ok(Network::Testnet),
+            "previewnet" => Ok(Network::Previewnet),
+            "local" => Ok(Network::Local),
             _ => Err(DIDError::InvalidDid(format!("Unknown network: {}", s))),
         }
     }
@@ -107,8 +113,12 @@ mod tests {
     fn network_parse_and_display() {
         assert!(matches!("mainnet".parse::<Network>(), Ok(Network::Mainnet)));
         assert!(matches!("testnet".parse::<Network>(), Ok(Network::Testnet)));
+        assert!(matches!("previewnet".parse::<Network>(), Ok(Network::Previewnet)));
+        assert!(matches!("local".parse::<Network>(), Ok(Network::Local)));
         assert!("invalid".parse::<Network>().is_err());
         assert_eq!(Network::Mainnet.to_string(), "mainnet");
+        assert_eq!(Network::Previewnet.to_string(), "previewnet");
+        assert_eq!(Network::Local.to_string(), "local");
     }
 
     #[test]
