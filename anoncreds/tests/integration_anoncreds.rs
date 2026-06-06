@@ -22,6 +22,7 @@ use hiero_did_client::NetworkConfig;
 use hiero_did_core::Signer;
 use hiero_did_hcs::HederaHcsService;
 use hiero_did_hcs::LocalSigner;
+use hiero_did_utils::tests::poll_until;
 use hiero_sdk::PrivateKey;
 
 fn unique_tag(prefix: &str) -> String {
@@ -40,7 +41,6 @@ struct Ctx {
 }
 
 fn setup_ctx() -> Result<Ctx, String> {
-    // Force .env.local to override shell env, then fill missing values from .env.
     let _ = from_filename_override(".env.local");
     let _ = from_filename(".env");
 
@@ -113,11 +113,15 @@ async fn register_and_get_schema_roundtrip() {
         .await
         .expect("register schema");
 
-    let resolved = ctx
-        .registry
-        .get_schema(&schema_id)
-        .await
-        .expect("get schema");
+    let resolved = poll_until(
+        || async {
+            ctx.registry.get_schema(&schema_id).await.ok()
+        },
+        30,
+        500,
+    )
+    .await
+    .expect("schema never appeared within 30s");
 
     assert_eq!(resolved.issuer_id, schema.issuer_id);
     assert_eq!(resolved.name, schema.name);
@@ -165,11 +169,16 @@ async fn register_and_get_credential_definition_roundtrip() {
         .await
         .expect("register cred def");
 
-    let resolved = ctx
-        .registry
-        .get_credential_definition(&cred_def_id)
-        .await
-        .expect("get cred def");
+    let resolved = poll_until(
+        || async {
+            ctx.registry.get_credential_definition(&cred_def_id).await.ok()
+        },
+        30,
+        500,
+    )
+    .await
+    .expect("credential definition never appeared within 30s");
+
     assert_eq!(resolved.issuer_id, cred_def.issuer_id);
     assert_eq!(resolved.tag, cred_def.tag);
     assert_eq!(resolved.cred_type, "CL");
@@ -240,11 +249,19 @@ async fn register_revocation_registry_and_status_list_roundtrip() {
         .await
         .expect("register rev reg def");
 
-    let rev_with_meta = ctx
-        .registry
-        .get_revocation_registry_definition(&rev_reg_def_id)
-        .await
-        .expect("get rev reg def");
+    let rev_with_meta = poll_until(
+        || async {
+            ctx.registry
+                .get_revocation_registry_definition(&rev_reg_def_id)
+                .await
+                .ok()
+        },
+        30,
+        500,
+    )
+    .await
+    .expect("revocation registry definition never appeared within 30s");
+
     assert_eq!(rev_with_meta.rev_reg_def.issuer_id, rev_reg_def.issuer_id);
     assert!(!rev_with_meta.hcs_metadata.entries_topic_id.is_empty());
 
@@ -252,6 +269,7 @@ async fn register_revocation_registry_and_status_list_roundtrip() {
         .duration_since(UNIX_EPOCH)
         .expect("clock")
         .as_secs();
+
     let status_list = AnonCredsRevocationStatusList {
         issuer_id: ctx.issuer_did.clone(),
         rev_reg_def_id: rev_reg_def_id.clone(),
@@ -269,17 +287,24 @@ async fn register_revocation_registry_and_status_list_roundtrip() {
         .await
         .expect("register status list");
 
-    tokio::time::sleep(tokio::time::Duration::from_secs(8)).await;
+    let resolved = poll_until(
+        || async {
+            ctx.registry
+                .get_revocation_status_list(
+                    Some(ctx.network_name.as_str()),
+                    &rev_reg_def_id,
+                    now + 300,
+                )
+                .await
+                .ok()
+        },
+        30,
+        500,
+    )
+    .await
+    .expect("status list never appeared within 30s");
 
-    let resolved = ctx
-        .registry
-        .get_revocation_status_list(Some(ctx.network_name.as_str()), &rev_reg_def_id, now + 300)
-        .await
-        .expect("get status list");
     assert_eq!(resolved.revocation_list, status_list.revocation_list);
-    assert_eq!(
-        resolved.current_accumulator,
-        status_list.current_accumulator
-    );
+    assert_eq!(resolved.current_accumulator, status_list.current_accumulator);
     assert_eq!(resolved.issuer_id, status_list.issuer_id);
 }

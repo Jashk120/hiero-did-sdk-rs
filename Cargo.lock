@@ -995,6 +995,7 @@ dependencies = [
  "hiero-did-client",
  "hiero-did-core",
  "hiero-did-hcs",
+ "hiero-did-utils",
  "hiero-sdk",
  "serde",
  "serde_json",
@@ -1147,6 +1148,13 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "hiero-did-utils"
+version = "0.1.0"
+dependencies = [
+ "tokio",
 ]
 
 [[package]]

@@ -110,7 +110,7 @@ impl HederaClientService {
                 let node_addr = std::env::var("HEDERA_NODE_ADDRESS")
                     .unwrap_or_else(|_| "127.0.0.1:35211".to_string());
                 let mirror_addr = std::env::var("HEDERA_MIRROR_NODE_ADDRESS")
-                    .unwrap_or_else(|_| "127.0.0.1:5600".to_string());
+                    .unwrap_or_else(|_| "127.0.0.1:38081".to_string());
                 let mut nodes = HashMap::new();
                 nodes.insert(
                     node_addr,

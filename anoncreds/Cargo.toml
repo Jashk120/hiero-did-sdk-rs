@@ -17,4 +17,5 @@ hiero-sdk = { workspace = true }
 
 [dev-dependencies]
 hiero-did-client = { path = "../client" }
+hiero-did-utils = { path = "../utils" }
 dotenvy = "0.15.7"
