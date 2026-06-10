@@ -16,5 +16,5 @@ pub struct HcsMessage {
     pub operation: String,
     pub did: String,
     /// base64-encoded JSON event payload
-    pub event: String,
+    pub event: Option<String>,
 }

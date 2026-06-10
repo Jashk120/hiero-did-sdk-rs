@@ -30,7 +30,7 @@ impl DIDRemoveVerificationMethodMessage {
             timestamp: self.timestamp.clone(),
             operation: "update".to_string(),
             did: self.did.clone(),
-            event: event_b64,
+            event: Some(event_b64),
         })
     }
  

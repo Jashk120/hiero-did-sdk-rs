@@ -73,7 +73,11 @@ impl DidDocumentBuilder {
             }
 
             // decode event
-            let event_json = match BASE64.decode(&message.event) {
+            let event_b64 = match &message.event {
+                Some(e) => e,
+                None => continue,  // no event to process (shouldn't happen for non-delete)
+            };
+            let event_json = match BASE64.decode(event_b64) {
                 Ok(b) => b,
                 Err(_) => continue,
             };

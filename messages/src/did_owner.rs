@@ -46,7 +46,7 @@ impl DIDOwnerMessage {
             timestamp: self.timestamp.clone(),
             operation: "create".to_string(),
             did: did_string,
-            event: event_b64,
+            event: Some(event_b64),
         })
     }
 
