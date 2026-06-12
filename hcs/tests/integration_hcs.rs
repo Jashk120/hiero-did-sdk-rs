@@ -12,7 +12,6 @@ use hiero_did_hcs::{
 use hiero_sdk::{AccountId, Client, PrivateKey};
 use std::collections::HashMap;
 use std::env;
-use std::str::FromStr;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use time::OffsetDateTime;

@@ -95,7 +95,7 @@ fn local_node_network_uses_local_defaults_and_aliases() {
     let expected_node =
         env::var("HEDERA_NODE_ADDRESS").unwrap_or_else(|_| "127.0.0.1:35211".to_string());
     let expected_mirror =
-        env::var("HEDERA_MIRROR_NODE_ADDRESS").unwrap_or_else(|_| "127.0.0.1:5600".to_string());
+        env::var("HEDERA_MIRROR_NODE_ADDRESS").unwrap_or_else(|_| "127.0.0.1:38081".to_string());
     let svc = HederaClientService::new(HederaClientConfiguration {
         networks: vec![NetworkConfig {
             network: HederaNetwork::LocalNode,
