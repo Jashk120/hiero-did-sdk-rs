@@ -14,11 +14,13 @@ hiero-did-messages = { version = "0.1.0", path = "../messages" }
 hiero-did-hcs = { version = "0.1.0", path = "../hcs" }
 hiero-did-signer = { version = "0.1.0", path = "../signer" }
 hiero-sdk = { workspace = true }
+hiero-did-lifecycle = { version = "0.1.0", path = "../lifecycle" }
 tokio = { workspace = true }
 thiserror = { workspace = true }
 serde.workspace = true
 sha2 = { workspace = true }
 hex = { workspace = true }
+tracing = {workspace = true}
 
 [dev-dependencies]
 dotenvy = "0.15.7"

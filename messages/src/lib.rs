@@ -20,6 +20,8 @@ pub use events::{
     DIDAddVerificationMethodEvent, DIDAddVerificationMethodEventData,
     DIDRemoveVerificationMethodEvent, DIDRemoveVerificationMethodEventData,
 };
+pub mod did_update;
+pub use did_update::DIDUpdateMessage;
 
 // update — services
 pub use did_add_service::DIDAddServiceMessage;

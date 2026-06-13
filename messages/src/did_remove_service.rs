@@ -4,6 +4,7 @@ use serde_json;
 use crate::envelope::{HcsEnvelope, HcsMessage};
 use crate::events::{DIDRemoveServiceEvent, DIDRemoveServiceEventData};
  
+#[derive(Debug, Clone)]
 pub struct DIDRemoveServiceMessage {
     pub did: String,
     /// Fragment id to remove, e.g. `did:hedera:testnet:...#vcs`

@@ -56,15 +56,15 @@ where
         &self,
         message: M,
         options: LifecycleRunnerOptions<'_, C>,
-    ) -> Result<RunnerState<M>, DIDError> {
+    ) -> Result<RunnerState<M, C>, DIDError> {
         self.process_from(message, options, None).await
     }
 
     pub async fn resume(
         &self,
-        state: RunnerState<M>,
+        state: RunnerState<M, C>,
         options: LifecycleRunnerOptions<'_, C>,
-    ) -> Result<RunnerState<M>, DIDError> {
+    ) -> Result<RunnerState<M, C>, DIDError> {
         if state.status != RunnerStatus::Pause {
             return Err(DIDError::InvalidArgument(
                 "Only paused lifecycle states can be resumed".into(),
@@ -79,7 +79,7 @@ where
         mut message: M,
         mut options: LifecycleRunnerOptions<'_, C>,
         resume_after_label: Option<String>,
-    ) -> Result<RunnerState<M>, DIDError> {
+    ) -> Result<RunnerState<M, C>, DIDError> {
         let start_index = if let Some(label) = resume_after_label {
             let pause_index = self.builder.get_index_by_label(&label).ok_or_else(|| {
                 DIDError::InvalidArgument(format!("Unknown lifecycle resume label: {label}"))
@@ -94,13 +94,15 @@ where
             .execute_steps(&mut message, &mut options, start_index)
             .await
         {
-            Ok(Some((index, label))) => Ok(RunnerState::pause(message, index, label)),
-            Ok(None) => Ok(RunnerState::success(message)),
+            Ok(Some((index, label))) => {
+                Ok(RunnerState::pause(message, options.context, index, label))
+            }
+            Ok(None) => Ok(RunnerState::success(message, options.context)),
             Err(error) => {
                 if let Some((_, catch_step)) = &self.builder.catch_step {
                     let message_text = error.to_string();
                     catch_step(error).await?;
-                    Ok(RunnerState::error(message, message_text))
+                    Ok(RunnerState::error(message, options.context, message_text))
                 } else {
                     Err(error)
                 }

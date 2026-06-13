@@ -1,9 +1,9 @@
-use hiero_did_core::signer::Signer;
-use hiero_did_core::{DIDError, HederaDid};
+use hiero_did_core::{DIDError, HederaDid, Signer};
 use hiero_did_hcs::HcsTopic;
+use hiero_did_lifecycle::{LifecycleBuilder, LifecycleMessage, LifecycleRunner, LifecycleRunnerOptions};
 use hiero_did_messages::{
     DIDAddServiceMessage, DIDAddVerificationMethodMessage, DIDRemoveServiceMessage,
-    DIDRemoveVerificationMethodMessage,
+    DIDRemoveVerificationMethodMessage, DIDUpdateMessage,
 };
 use hiero_did_signer::InternalSigner;
 use hiero_sdk::Client;
@@ -126,150 +126,103 @@ async fn apply_operation(
     signer: &dyn Signer,
     op: DIDUpdateOperation,
 ) -> Result<(), DIDError> {
-    match op {
-        DIDUpdateOperation::AddVerificationMethod(opts) => {
-            apply_add_verification_method(client, did_str, topic_id, signer, opts).await
-        }
-        DIDUpdateOperation::RemoveVerificationMethod(opts) => {
-            apply_remove_verification_method(client, did_str, topic_id, signer, opts).await
-        }
-        DIDUpdateOperation::AddService(opts) => {
-            apply_add_service(client, did_str, topic_id, signer, opts).await
-        }
-        DIDUpdateOperation::RemoveService(opts) => {
-            apply_remove_service(client, did_str, topic_id, signer, opts).await
-        }
-    }
+    let message = DIDUpdateMessage::from_operation(did_str, op)?;
+    sign_and_submit(client, topic_id, signer, message).await
 }
 
-// ---------------------------------------------------------------------------
-// Sub-operation handlers
-// ---------------------------------------------------------------------------
+// Sub-operation functions were consolidated into DIDUpdateMessage::from_operation
 
-async fn apply_add_verification_method(
-    client: &Client,
-    did_str: &str,
-    topic_id: hiero_sdk::TopicId,
-    signer: &dyn Signer,
-    opts: AddVerificationMethod,
-) -> Result<(), DIDError> {
-    if matches!(
-        opts.property,
-        VerificationMethodProperty::VerificationMethod
-    ) && opts.public_key_multibase.is_none()
-    {
-        return Err(DIDError::InvalidArgument(
-            "public_key_multibase is required for verificationMethod property".into(),
-        ));
-    }
-    let controller = opts.controller.unwrap_or_else(|| did_str.to_string());
-    let message = DIDAddVerificationMethodMessage::new(
-        did_str.to_string(),
-        opts.id,
-        opts.property.as_str().to_string(),
-        controller,
-        opts.public_key_multibase.unwrap_or_default(),
-    );
-    sign_and_submit(client, topic_id, signer, &message).await
-}
-
-async fn apply_remove_verification_method(
-    client: &Client,
-    did_str: &str,
-    topic_id: hiero_sdk::TopicId,
-    signer: &dyn Signer,
-    opts: RemoveVerificationMethod,
-) -> Result<(), DIDError> {
-    let message = DIDRemoveVerificationMethodMessage::new(did_str.to_string(), opts.id);
-    sign_and_submit(client, topic_id, signer, &message).await
-}
-
-async fn apply_add_service(
-    client: &Client,
-    did_str: &str,
-    topic_id: hiero_sdk::TopicId,
-    signer: &dyn Signer,
-    opts: AddService,
-) -> Result<(), DIDError> {
-    let message = DIDAddServiceMessage::new(
-        did_str.to_string(),
-        opts.id,
-        opts.service_type,
-        opts.service_endpoint,
-    );
-    sign_and_submit(client, topic_id, signer, &message).await
-}
-
-async fn apply_remove_service(
-    client: &Client,
-    did_str: &str,
-    topic_id: hiero_sdk::TopicId,
-    signer: &dyn Signer,
-    opts: RemoveService,
-) -> Result<(), DIDError> {
-    let message = DIDRemoveServiceMessage::new(did_str.to_string(), opts.id);
-    sign_and_submit(client, topic_id, signer, &message).await
-}
-
-// ---------------------------------------------------------------------------
-// Shared sign + submit helper
-// ---------------------------------------------------------------------------
-
-/// sign_and_submit collapses the JS LifecycleRunner boilerplate into:
-/// message_bytes → sign → to_payload → HcsTopic::submit
-/// This matches exactly how create.rs works with DIDOwnerMessage.
-async fn sign_and_submit<M: HcsSignable>(
+async fn sign_and_submit(
     client: &Client,
     topic_id: hiero_sdk::TopicId,
     signer: &dyn Signer,
-    message: &M,
+    message: DIDUpdateMessage,
 ) -> Result<(), DIDError> {
+    // 1. Sign (manual because DIDUpdateMessage doesn't store signature in inner types)
     let msg_bytes = message.message_bytes()?;
     let signature = signer.sign_bytes(&msg_bytes)?;
+    
+    // 2. Use runner to wrap the process (unifies logs/hooks)
+    let runner = update_lifecycle()?;
+    let mut options = LifecycleRunnerOptions::new(());
+    options.signer = Some(signer);
+    options.signature = Some(signature.clone());
+
+    // This advances the lifecycle; if we add hooks later, they'll fire here.
+    let _ = runner.process(message.clone(), options).await?;
+    
+    // 3. Submit
     let payload = message.to_payload(&signature)?;
     HcsTopic::submit(client, topic_id, payload).await?;
     Ok(())
 }
 
-/// Shared surface every DID*Message type satisfies.
-/// Matches the methods already on DIDOwnerMessage in create.rs.
-pub trait HcsSignable {
-    fn message_bytes(&self) -> Result<Vec<u8>, DIDError>;
+fn update_lifecycle() -> Result<LifecycleRunner<DIDUpdateMessage, ()>, DIDError> {
+    let builder = LifecycleBuilder::new()
+        .sign_with_signer("sign")?;
+    Ok(LifecycleRunner::new(builder))
+}
+
+pub trait DIDUpdateMessageExt {
+    fn from_operation(did_str: &str, op: DIDUpdateOperation) -> Result<DIDUpdateMessage, DIDError>;
     fn to_payload(&self, signature: &[u8]) -> Result<String, DIDError>;
 }
 
-impl HcsSignable for DIDAddVerificationMethodMessage {
-    fn message_bytes(&self) -> Result<Vec<u8>, DIDError> {
-        self.message_bytes()
+impl DIDUpdateMessageExt for DIDUpdateMessage {
+    fn from_operation(did_str: &str, op: DIDUpdateOperation) -> Result<Self, DIDError> {
+        match op {
+            DIDUpdateOperation::AddVerificationMethod(opts) => {
+                if matches!(
+                    opts.property,
+                    VerificationMethodProperty::VerificationMethod
+                ) && opts.public_key_multibase.is_none()
+                {
+                    return Err(DIDError::InvalidArgument(
+                        "public_key_multibase is required for verificationMethod property".into(),
+                    ));
+                }
+                let controller = opts.controller.unwrap_or_else(|| did_str.to_string());
+                Ok(Self::AddVerificationMethod(DIDAddVerificationMethodMessage::new(
+                    did_str.to_string(),
+                    opts.id,
+                    opts.property.as_str().to_string(),
+                    controller,
+                    opts.public_key_multibase.unwrap_or_default(),
+                )))
+            }
+            DIDUpdateOperation::RemoveVerificationMethod(opts) => {
+                Ok(Self::RemoveVerificationMethod(DIDRemoveVerificationMethodMessage::new(
+                    did_str.to_string(),
+                    opts.id,
+                )))
+            }
+            DIDUpdateOperation::AddService(opts) => {
+                Ok(Self::AddService(DIDAddServiceMessage::new(
+                    did_str.to_string(),
+                    opts.id,
+                    opts.service_type,
+                    opts.service_endpoint,
+                )))
+            }
+            DIDUpdateOperation::RemoveService(opts) => {
+                Ok(Self::RemoveService(DIDRemoveServiceMessage::new(
+                    did_str.to_string(),
+                    opts.id,
+                )))
+            }
+        }
     }
-    fn to_payload(&self, sig: &[u8]) -> Result<String, DIDError> {
-        self.to_payload(sig)
+
+    fn to_payload(&self, signature: &[u8]) -> Result<String, DIDError> {
+        match self {
+            Self::AddVerificationMethod(m) => m.to_payload(signature),
+            Self::RemoveVerificationMethod(m) => m.to_payload(signature),
+            Self::AddService(m) => m.to_payload(signature),
+            Self::RemoveService(m) => m.to_payload(signature),
+        }
     }
 }
-impl HcsSignable for DIDRemoveVerificationMethodMessage {
-    fn message_bytes(&self) -> Result<Vec<u8>, DIDError> {
-        self.message_bytes()
-    }
-    fn to_payload(&self, sig: &[u8]) -> Result<String, DIDError> {
-        self.to_payload(sig)
-    }
-}
-impl HcsSignable for DIDAddServiceMessage {
-    fn message_bytes(&self) -> Result<Vec<u8>, DIDError> {
-        self.message_bytes()
-    }
-    fn to_payload(&self, sig: &[u8]) -> Result<String, DIDError> {
-        self.to_payload(sig)
-    }
-}
-impl HcsSignable for DIDRemoveServiceMessage {
-    fn message_bytes(&self) -> Result<Vec<u8>, DIDError> {
-        self.message_bytes()
-    }
-    fn to_payload(&self, sig: &[u8]) -> Result<String, DIDError> {
-        self.to_payload(sig)
-    }
-}
+
 pub async fn update_did_with_signer(
     client: &Client,
     did: HederaDid,

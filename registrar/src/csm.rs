@@ -222,6 +222,7 @@ impl CsmOperationState {
                 public_key_bytes: public_key_bytes.clone(),
                 timestamp: timestamp.clone(),
                 controller: controller.clone(),
+                signature: None,
             }
             .message_bytes(),
             CsmMessageState::AddVerificationMethod {
@@ -290,6 +291,7 @@ impl CsmOperationState {
                 public_key_bytes: public_key_bytes.clone(),
                 timestamp: timestamp.clone(),
                 controller: controller.clone(),
+                signature: None,
             }
             .to_payload(signature),
             CsmMessageState::AddVerificationMethod {
@@ -570,10 +572,10 @@ mod tests {
         assert!(require_signature(&[1u8; 64]).is_ok());
     }
 
-    #[test]
-    fn deactivate_prepare_preserves_exact_message_bytes() {
+    #[tokio::test]
+    async fn deactivate_prepare_preserves_exact_message_bytes() {
         let signer = test_signer();
-        let request = prepare_deactivate_did_csm(test_did(&signer)).expect("prepare");
+        let request = prepare_deactivate_did_csm(test_did(&signer)).await.expect("prepare");
 
         assert_eq!(request.version, CSM_STATE_VERSION);
         assert_eq!(request.request_id, request.state.request_id);
@@ -585,8 +587,8 @@ mod tests {
         );
     }
 
-    #[test]
-    fn update_prepare_builds_one_request_per_operation() {
+    #[tokio::test]
+    async fn update_prepare_builds_one_request_per_operation() {
         let signer = test_signer();
         let did = test_did(&signer);
         let request = prepare_update_did_csm(
@@ -597,6 +599,7 @@ mod tests {
                 service_endpoint: "https://example.com".to_string(),
             })],
         )
+        .await
         .expect("prepare");
 
         assert_eq!(request.operation, "update");
@@ -610,10 +613,10 @@ mod tests {
         );
     }
 
-    #[test]
-    fn signing_request_converts_to_submit_request() {
+    #[tokio::test]
+    async fn signing_request_converts_to_submit_request() {
         let signer = test_signer();
-        let request = prepare_deactivate_did_csm(test_did(&signer)).expect("prepare");
+        let request = prepare_deactivate_did_csm(test_did(&signer)).await.expect("prepare");
         let signature = signer.sign(&request.message_bytes);
         let submit = request
             .clone()
@@ -624,8 +627,8 @@ mod tests {
         assert_eq!(submit.signature, signature);
     }
 
-    #[test]
-    fn batch_signing_request_rejects_signature_count_mismatch() {
+    #[tokio::test]
+    async fn batch_signing_request_rejects_signature_count_mismatch() {
         let signer = test_signer();
         let did = test_did(&signer);
         let request = prepare_update_did_csm(
@@ -636,16 +639,17 @@ mod tests {
                 service_endpoint: "https://example.com".to_string(),
             })],
         )
+        .await
         .expect("prepare");
 
         let err = request.into_submit_request(vec![]).expect_err("must fail");
         assert!(matches!(err, DIDError::InvalidArgument(_)));
     }
 
-    #[test]
-    fn submit_request_rejects_invalid_signature() {
+    #[tokio::test]
+    async fn submit_request_rejects_invalid_signature() {
         let signer = test_signer();
-        let request = prepare_deactivate_did_csm(test_did(&signer)).expect("prepare");
+        let request = prepare_deactivate_did_csm(test_did(&signer)).await.expect("prepare");
         let err = request
             .into_submit_request(vec![1u8; 64])
             .expect_err("must fail");
@@ -653,8 +657,8 @@ mod tests {
         assert!(matches!(err, DIDError::InvalidSignature(_)));
     }
 
-    #[test]
-    fn expired_state_is_rejected_before_submit() {
+    #[tokio::test]
+    async fn expired_state_is_rejected_before_submit() {
         let signer = test_signer();
         let request = prepare_deactivate_did_csm_with_options(
             test_did(&signer),
@@ -662,6 +666,7 @@ mod tests {
                 expires_at_unix: Some(1),
             },
         )
+        .await
         .expect("prepare");
         let signature = signer.sign(&request.message_bytes);
         let err = request
@@ -671,10 +676,10 @@ mod tests {
         assert!(matches!(err, DIDError::InvalidArgument(_)));
     }
 
-    #[test]
-    fn serialized_signing_request_preserves_exact_bytes() {
+    #[tokio::test]
+    async fn serialized_signing_request_preserves_exact_bytes() {
         let signer = test_signer();
-        let request = prepare_deactivate_did_csm(test_did(&signer)).expect("prepare");
+        let request = prepare_deactivate_did_csm(test_did(&signer)).await.expect("prepare");
         let json = serde_json::to_string(&request).expect("serialize");
         let decoded: CsmSigningRequest = serde_json::from_str(&json).expect("deserialize");
 

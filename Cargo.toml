@@ -33,3 +33,4 @@ sha2 = "0.10"
 moka = { version = "0.12", features = ["future"] }
 hex = "0.4"
 rust_decimal = "1"
+tracing = "0.1"

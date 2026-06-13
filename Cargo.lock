@@ -1067,6 +1067,7 @@ dependencies = [
  "base64",
  "chrono",
  "hiero-did-core",
+ "hiero-did-lifecycle",
  "serde",
  "serde_json",
  "thiserror",
@@ -1090,6 +1091,7 @@ dependencies = [
  "hiero-did-client",
  "hiero-did-core",
  "hiero-did-hcs",
+ "hiero-did-lifecycle",
  "hiero-did-messages",
  "hiero-did-resolver",
  "hiero-did-signer",
@@ -1100,6 +1102,7 @@ dependencies = [
  "sha2",
  "thiserror",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

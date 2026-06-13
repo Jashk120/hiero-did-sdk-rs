@@ -1,7 +1,7 @@
 [package]
 name = "hiero-did-anoncreds"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 hiero-did-core = { path = "../core" }

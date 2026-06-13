@@ -4,6 +4,7 @@ use serde_json;
 use crate::envelope::{HcsEnvelope, HcsMessage};
 use crate::events::{DIDRemoveVerificationMethodEvent, DIDRemoveVerificationMethodEventData};
  
+#[derive(Debug, Clone)]
 pub struct DIDRemoveVerificationMethodMessage {
     pub did: String,
     /// Full fragment id to remove, e.g. `did:hedera:testnet:...#key-1`

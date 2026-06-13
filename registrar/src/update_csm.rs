@@ -8,24 +8,31 @@ use crate::csm::PAUSE_FOR_SIGNATURE_LABEL;
 use crate::csm::build_state;
 use crate::csm::public_key_from_did;
 use crate::csm::submit_csm_batch;
-use crate::update::DIDUpdateOperation;
-use crate::update::VerificationMethodProperty;
+use crate::update::{DIDUpdateOperation, DIDUpdateMessageExt};
 use hiero_did_core::DIDError;
 use hiero_did_core::HederaDid;
-use hiero_did_messages::DIDAddServiceMessage;
-use hiero_did_messages::DIDAddVerificationMethodMessage;
-use hiero_did_messages::DIDRemoveServiceMessage;
-use hiero_did_messages::DIDRemoveVerificationMethodMessage;
+use hiero_did_lifecycle::LifecycleBuilder;
+use hiero_did_lifecycle::LifecycleRunner;
+use hiero_did_lifecycle::LifecycleRunnerOptions;
+use hiero_did_lifecycle::RunnerStatus;
+use hiero_did_messages::DIDUpdateMessage;
 use hiero_sdk::Client;
 
-pub fn prepare_update_did_csm(
+const STEP_SIGN: &str = "pause-for-signature";
+
+fn update_lifecycle() -> Result<LifecycleRunner<DIDUpdateMessage, crate::csm::CsmOperationState>, DIDError> {
+    let builder = LifecycleBuilder::new().pause(STEP_SIGN)?;
+    Ok(LifecycleRunner::new(builder))
+}
+
+pub async fn prepare_update_did_csm(
     did: HederaDid,
     updates: Vec<DIDUpdateOperation>,
 ) -> Result<CsmBatchSigningRequest, DIDError> {
-    prepare_update_did_csm_with_options(did, updates, CsmPrepareOptions::default())
+    prepare_update_did_csm_with_options(did, updates, CsmPrepareOptions::default()).await
 }
 
-pub fn prepare_update_did_csm_with_options(
+pub async fn prepare_update_did_csm_with_options(
     did: HederaDid,
     updates: Vec<DIDUpdateOperation>,
     options: CsmPrepareOptions,
@@ -42,13 +49,16 @@ pub fn prepare_update_did_csm_with_options(
     let mut requests = Vec::with_capacity(updates.len());
 
     for update in updates {
-        requests.push(prepare_update_operation_csm(
-            &did_string,
-            &topic_id,
-            update,
-            expected_public_key_bytes.clone(),
-            options.clone(),
-        )?);
+        requests.push(
+            prepare_update_operation_csm(
+                &did_string,
+                &topic_id,
+                update,
+                expected_public_key_bytes.clone(),
+                options.clone(),
+            )
+            .await?,
+        );
     }
 
     Ok(CsmBatchSigningRequest {
@@ -83,110 +93,65 @@ pub async fn submit_update_did_csm(
     submit_csm_batch(client, request).await
 }
 
-fn prepare_update_operation_csm(
+async fn prepare_update_operation_csm(
     did: &str,
     topic_id: &str,
     update: DIDUpdateOperation,
     expected_public_key_bytes: Vec<u8>,
     options: CsmPrepareOptions,
 ) -> Result<CsmSigningRequest, DIDError> {
-    match update {
-        DIDUpdateOperation::AddVerificationMethod(opts) => {
-            if matches!(
-                opts.property,
-                VerificationMethodProperty::VerificationMethod
-            ) && opts.public_key_multibase.is_none()
-            {
-                return Err(DIDError::InvalidArgument(
-                    "public_key_multibase is required for verificationMethod property".into(),
-                ));
-            }
+    let (message, csm_message_state) = {
+        let did_str = did.to_string();
+        let message = DIDUpdateMessage::from_operation(&did_str, update)?;
+        let state = match &message {
+            DIDUpdateMessage::AddVerificationMethod(m) => CsmMessageState::AddVerificationMethod {
+                did: m.did.clone(),
+                id: m.id.clone(),
+                property: m.property.clone(),
+                controller: m.controller.clone(),
+                public_key_multibase: m.public_key_multibase.clone(),
+                timestamp: m.timestamp.clone(),
+            },
+            DIDUpdateMessage::RemoveVerificationMethod(m) => CsmMessageState::RemoveVerificationMethod {
+                did: m.did.clone(),
+                id: m.id.clone(),
+                timestamp: m.timestamp.clone(),
+            },
+            DIDUpdateMessage::AddService(m) => CsmMessageState::AddService {
+                did: m.did.clone(),
+                id: m.id.clone(),
+                service_type: m.service_type.clone(),
+                service_endpoint: m.service_endpoint.clone(),
+                timestamp: m.timestamp.clone(),
+            },
+            DIDUpdateMessage::RemoveService(m) => CsmMessageState::RemoveService {
+                did: m.did.clone(),
+                id: m.id.clone(),
+                timestamp: m.timestamp.clone(),
+            },
+        };
+        (message, state)
+    };
 
-            let controller = opts.controller.unwrap_or_else(|| did.to_string());
-            let public_key_multibase = opts.public_key_multibase.unwrap_or_default();
-            let property = opts.property.as_str().to_string();
-            let message = DIDAddVerificationMethodMessage::new(
-                did.to_string(),
-                opts.id.clone(),
-                property.clone(),
-                controller.clone(),
-                public_key_multibase.clone(),
-            );
+    let csm_state = build_state(
+        did.to_string(),
+        topic_id.to_string(),
+        "update".to_string(),
+        csm_message_state,
+        expected_public_key_bytes,
+        options,
+    )?;
 
-            build_state(
-                did.to_string(),
-                topic_id.to_string(),
-                "update".to_string(),
-                CsmMessageState::AddVerificationMethod {
-                    did: did.to_string(),
-                    id: opts.id,
-                    property,
-                    controller,
-                    public_key_multibase,
-                    timestamp: message.timestamp,
-                },
-                expected_public_key_bytes,
-                options,
-            )?
-            .signing_request()
-        }
-        DIDUpdateOperation::RemoveVerificationMethod(opts) => {
-            let message = DIDRemoveVerificationMethodMessage::new(did.to_string(), opts.id.clone());
+    let runner = update_lifecycle()?;
+    let runner_state = runner
+        .process(message, LifecycleRunnerOptions::new(csm_state))
+        .await?;
 
-            build_state(
-                did.to_string(),
-                topic_id.to_string(),
-                "update".to_string(),
-                CsmMessageState::RemoveVerificationMethod {
-                    did: did.to_string(),
-                    id: opts.id,
-                    timestamp: message.timestamp,
-                },
-                expected_public_key_bytes,
-                options,
-            )?
-            .signing_request()
-        }
-        DIDUpdateOperation::AddService(opts) => {
-            let message = DIDAddServiceMessage::new(
-                did.to_string(),
-                opts.id.clone(),
-                opts.service_type.clone(),
-                opts.service_endpoint.clone(),
-            );
-
-            build_state(
-                did.to_string(),
-                topic_id.to_string(),
-                "update".to_string(),
-                CsmMessageState::AddService {
-                    did: did.to_string(),
-                    id: opts.id,
-                    service_type: opts.service_type,
-                    service_endpoint: opts.service_endpoint,
-                    timestamp: message.timestamp,
-                },
-                expected_public_key_bytes,
-                options,
-            )?
-            .signing_request()
-        }
-        DIDUpdateOperation::RemoveService(opts) => {
-            let message = DIDRemoveServiceMessage::new(did.to_string(), opts.id.clone());
-
-            build_state(
-                did.to_string(),
-                topic_id.to_string(),
-                "update".to_string(),
-                CsmMessageState::RemoveService {
-                    did: did.to_string(),
-                    id: opts.id,
-                    timestamp: message.timestamp,
-                },
-                expected_public_key_bytes,
-                options,
-            )?
-            .signing_request()
-        }
+    if runner_state.status != RunnerStatus::Pause {
+        return Err(DIDError::InternalError(
+            "Expected lifecycle to pause for signature".into(),
+        ));
     }
+
+    runner_state.context.signing_request()
 }

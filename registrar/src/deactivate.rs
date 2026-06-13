@@ -1,6 +1,7 @@
 use hiero_did_core::signer::Signer;
 use hiero_did_core::{DIDError, HederaDid};
 use hiero_did_hcs::HcsTopic;
+use hiero_did_lifecycle::{LifecycleBuilder, LifecycleRunner, LifecycleRunnerOptions};
 use hiero_did_messages::DIDDeactivateMessage;
 use hiero_did_signer::InternalSigner;
 use hiero_sdk::Client;
@@ -31,30 +32,8 @@ pub async fn deactivate_did(
     did: HederaDid,
     private_key_bytes: &[u8],
 ) -> Result<DeactivateDIDResult, DIDError> {
-    let did_str = did.to_string();
-
-    let topic_id = did
-        .topic_id
-        .parse()
-        .map_err(|e| DIDError::InvalidDid(format!("Cannot parse topic ID from DID: {}", e)))?;
-
-    let message = DIDDeactivateMessage::new(did);
-
     let signer = InternalSigner::from_raw_bytes(private_key_bytes)?;
-    let msg_bytes = message.message_bytes()?;
-    let signature = signer.sign(&msg_bytes);
-    let payload = message.to_payload(&signature)?;
-
-    HcsTopic::submit(client, topic_id, payload).await?;
-
-    Ok(DeactivateDIDResult {
-        did_document: DeactivatedDIDDocument {
-            id: did_str.clone(),
-            controller: did_str.clone(),
-            verification_method: vec![],
-        },
-        did: did_str,
-    })
+    deactivate_did_with_signer(client, did, &signer).await
 }
 
 pub async fn deactivate_did_with_signer(
@@ -69,10 +48,21 @@ pub async fn deactivate_did_with_signer(
         .map_err(|e| DIDError::InvalidDid(format!("Cannot parse topic ID from DID: {}", e)))?;
 
     let message = DIDDeactivateMessage::new(did);
+
+    // 1. Sign (manual because DIDDeactivateMessage doesn't store signature in inner types)
     let msg_bytes = message.message_bytes()?;
     let signature = signer.sign_bytes(&msg_bytes)?;
-    let payload = message.to_payload(&signature)?;
 
+    // 2. Use runner to wrap the process
+    let runner = deactivate_lifecycle()?;
+    let mut options = LifecycleRunnerOptions::new(());
+    options.signer = Some(signer);
+    options.signature = Some(signature.clone());
+
+    let _ = runner.process(message.clone(), options).await?;
+
+    // 3. Submit
+    let payload = message.to_payload(&signature)?;
     HcsTopic::submit(client, topic_id, payload).await?;
 
     Ok(DeactivateDIDResult {
@@ -83,6 +73,11 @@ pub async fn deactivate_did_with_signer(
         },
         did: did_str,
     })
+}
+
+fn deactivate_lifecycle() -> Result<LifecycleRunner<DIDDeactivateMessage, ()>, DIDError> {
+    let builder = LifecycleBuilder::new().sign_with_signer("sign")?;
+    Ok(LifecycleRunner::new(builder))
 }
 
 #[cfg(test)]

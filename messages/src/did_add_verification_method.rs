@@ -4,6 +4,7 @@ use serde_json;
 use crate::envelope::{HcsEnvelope, HcsMessage};
 use crate::events::{DIDAddVerificationMethodEvent, DIDAddVerificationMethodEventData};
  
+#[derive(Debug, Clone)]
 pub struct DIDAddVerificationMethodMessage {
     pub did: String,
     /// Full fragment id, e.g. `did:hedera:testnet:...#key-1`

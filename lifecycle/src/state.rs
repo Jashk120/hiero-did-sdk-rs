@@ -6,18 +6,20 @@ pub enum RunnerStatus {
 }
 
 #[derive(Debug, Clone)]
-pub struct RunnerState<M> {
+pub struct RunnerState<M, C = ()> {
     pub message: M,
+    pub context: C,
     pub status: RunnerStatus,
     pub index: isize,
     pub label: String,
     pub error: Option<String>,
 }
 
-impl<M> RunnerState<M> {
-    pub(crate) fn success(message: M) -> Self {
+impl<M, C> RunnerState<M, C> {
+    pub(crate) fn success(message: M, context: C) -> Self {
         Self {
             message,
+            context,
             status: RunnerStatus::Success,
             index: -1,
             label: String::new(),
@@ -25,9 +27,10 @@ impl<M> RunnerState<M> {
         }
     }
 
-    pub(crate) fn error(message: M, error: String) -> Self {
+    pub(crate) fn error(message: M, context: C, error: String) -> Self {
         Self {
             message,
+            context,
             status: RunnerStatus::Error,
             index: -1,
             label: String::new(),
@@ -35,9 +38,10 @@ impl<M> RunnerState<M> {
         }
     }
 
-    pub(crate) fn pause(message: M, index: usize, label: String) -> Self {
+    pub(crate) fn pause(message: M, context: C, index: usize, label: String) -> Self {
         Self {
             message,
+            context,
             status: RunnerStatus::Pause,
             index: index as isize,
             label,

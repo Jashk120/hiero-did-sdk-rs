@@ -1,5 +1,6 @@
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use hiero_did_core::{DIDError, HederaDid, KeysUtility};
+use hiero_did_lifecycle::LifecycleMessage;
 use serde_json;
 
 use crate::envelope::{HcsEnvelope, HcsMessage};
@@ -11,6 +12,7 @@ pub struct DIDOwnerMessage {
     pub public_key_bytes: Vec<u8>,
     pub timestamp: String,
     pub controller: Option<String>,
+    pub signature: Option<Vec<u8>>,
 }
 
 impl DIDOwnerMessage {
@@ -20,7 +22,13 @@ impl DIDOwnerMessage {
         controller: Option<String>,
     ) -> Self {
         let timestamp = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
-        Self { did, public_key_bytes, timestamp, controller }
+        Self {
+            did,
+            public_key_bytes,
+            timestamp,
+            controller,
+            signature: None,
+        }
     }
 
     /// Build the HcsMessage — this is what gets signed
@@ -66,5 +74,16 @@ impl DIDOwnerMessage {
         let message = self.to_hcs_message()?;
         serde_json::to_vec(&message)
             .map_err(|e| DIDError::SerializationError(e.to_string()))
+    }
+}
+
+impl LifecycleMessage for DIDOwnerMessage {
+    fn message_bytes(&self) -> Result<Vec<u8>, DIDError> {
+        self.message_bytes()
+    }
+
+    fn set_signature(&mut self, signature: Vec<u8>) -> Result<(), DIDError> {
+        self.signature = Some(signature);
+        Ok(())
     }
 }

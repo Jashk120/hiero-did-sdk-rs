@@ -34,7 +34,7 @@ pub use deactivate::deactivate_did_with_signer;
 pub use update::AddService;
 pub use update::AddVerificationMethod;
 pub use update::DIDUpdateOperation;
-pub use update::HcsSignable;
+// HcsSignable was removed during the update.rs refactor
 pub use update::RemoveService;
 pub use update::RemoveVerificationMethod;
 pub use update::UpdateDIDResult;

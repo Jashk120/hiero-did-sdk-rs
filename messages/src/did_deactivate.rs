@@ -2,6 +2,7 @@ use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use hiero_did_core::{DIDError, HederaDid};
 use crate::envelope::{HcsEnvelope, HcsMessage};
 
+#[derive(Debug, Clone)]
 pub struct DIDDeactivateMessage {
     pub did: HederaDid,
     pub timestamp: String,
@@ -37,6 +38,18 @@ impl DIDDeactivateMessage {
         let message = self.to_hcs_message()?;
         serde_json::to_vec(&message)
             .map_err(|e| DIDError::SerializationError(e.to_string()))
+    }
+}
+
+impl hiero_did_lifecycle::LifecycleMessage for DIDDeactivateMessage {
+    fn message_bytes(&self) -> Result<Vec<u8>, DIDError> {
+        self.message_bytes()
+    }
+
+    fn set_signature(&mut self, _signature: Vec<u8>) -> Result<(), DIDError> {
+        // No-op: this message type carries no signature field.
+        // Signing is applied at submit time via to_payload.
+        Ok(())
     }
 }
 

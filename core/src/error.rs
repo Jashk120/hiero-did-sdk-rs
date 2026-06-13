@@ -16,4 +16,9 @@ pub enum DIDError {
     InternalError(String),
     #[error("Serialization error: {0}")]
     SerializationError(String),
+    #[error("Orphaned topic {topic_id}: {reason}")]
+    OrphanedTopic {
+        topic_id: String,
+        reason: String,
+    },
 }

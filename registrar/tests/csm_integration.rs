@@ -138,6 +138,7 @@ async fn csm_create_update_deactivate_roundtrip() {
             service_endpoint: format!("https://example.com/{suffix}"),
         })],
     )
+    .await
     .expect("prepare update csm");
     let update_signatures = update_request
         .requests
@@ -166,7 +167,7 @@ async fn csm_create_update_deactivate_roundtrip() {
             .any(|service| service.id.ends_with(&format!("#svc-{suffix}")))
     );
 
-    let deactivate_request = prepare_deactivate_did_csm(did.clone()).expect("prepare deactivate");
+    let deactivate_request = prepare_deactivate_did_csm(did.clone()).await.expect("prepare deactivate");
     let deactivate_signature = signer.sign(&deactivate_request.message_bytes);
     let deactivate_submit = deactivate_request
         .into_submit_request(deactivate_signature)
@@ -219,6 +220,7 @@ async fn csm_update_multi_operation_batch() {
             service_endpoint: format!("https://example.com/setup-{suffix}"),
         })],
     )
+    .await
     .expect("prepare setup update csm");
     let setup_signatures = setup_update
         .requests
@@ -259,6 +261,7 @@ async fn csm_update_multi_operation_batch() {
             }),
         ],
     )
+    .await
     .expect("prepare batch update csm");
 
     assert_eq!(batch_update.requests.len(), 3);

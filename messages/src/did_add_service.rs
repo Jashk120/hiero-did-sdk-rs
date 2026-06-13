@@ -4,6 +4,7 @@ use serde_json;
 use crate::envelope::{HcsEnvelope, HcsMessage};
 use crate::events::{DIDAddServiceEvent, DIDAddServiceEventData};
  
+#[derive(Debug, Clone)]
 pub struct DIDAddServiceMessage {
     pub did: String,
     /// Fragment id, e.g. `did:hedera:testnet:...#vcs`
