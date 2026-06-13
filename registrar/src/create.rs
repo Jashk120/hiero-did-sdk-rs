@@ -9,75 +9,50 @@ use hiero_sdk::{Client, PrivateKey, TopicId};
 use std::time::Duration;
 use tokio::time::sleep;
 
-// ---------------------------------------------------------------------------
-// Retry configuration — tweak here if needed, no need for a config struct yet
-// ---------------------------------------------------------------------------
 const SUBMIT_MAX_RETRIES: u32 = 3;
 const SUBMIT_BASE_BACKOFF_MS: u64 = 500;
 
-// ---------------------------------------------------------------------------
-// Result types
-// ---------------------------------------------------------------------------
-
 pub struct CreateDIDResult {
     pub did: HederaDid,
-    /// Raw 32-byte ed25519 private key — caller must store this securely
     pub private_key_bytes: Vec<u8>,
-    /// Raw 32-byte ed25519 public key
     pub public_key_bytes: Vec<u8>,
 }
 
 pub struct CreateDIDWithSignerResult {
     pub did: HederaDid,
-    /// Raw 32-byte ed25519 public key
     pub public_key_bytes: Vec<u8>,
 }
 
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
-
 /// Creates a new did:hedera DID.
 ///
-/// Steps:
-/// 1. Generate a new ed25519 keypair for the DID
-/// 2. Create an HCS topic (this becomes the DID's topic ID)
-/// 3. Build and sign the DIDOwner message
-/// 4. Submit the signed message to the topic (with retry + backoff)
-/// 5. Return the DID and keypair
-///
 /// # Errors
-/// Returns `DIDError::OrphanedTopic` if the topic was created but all submit
-/// attempts failed. The caller should log the contained `topic_id` for
-/// operational visibility.
+/// If the HCS topic was created but a later step (signing or submission)
+/// fails, the returned `DIDError::InternalError` message is prefixed with
+/// `orphaned_topic=<TOPIC_ID>` so the stranded topic can be identified from
+/// logs. This is a stopgap pending a possible dedicated error variant
+/// (tracked separately — see discord thread on DIDError/JS ErrorCodes parity).
 pub async fn create_did(
     client: &Client,
     network: Network,
     controller: Option<String>,
 ) -> Result<CreateDIDResult, DIDError> {
-    // 1. Generate DID keypair
     let hiero_private_key = PrivateKey::generate_ed25519();
     let hiero_public_key = hiero_private_key.public_key();
     let private_key_bytes = hiero_private_key.to_bytes_raw();
     let public_key_bytes = hiero_public_key.to_bytes_raw();
 
-    // 2. Create HCS topic — this topic ID becomes part of the DID string.
-    //    Must happen before signing because the topic ID is embedded in the
-    //    DID string which is itself included in the signed message.
     let topic_id = HcsTopic::create(client).await?;
     let topic_id_str = format!("{}", topic_id);
 
-    // 3. Build DID now that we have the topic ID
     let base58_key = KeysUtility::from_bytes(public_key_bytes.clone()).to_base58();
     let did = HederaDid::new(network, base58_key, topic_id_str);
 
-    // 4. Build and sign the DIDOwner message
     let message = DIDOwnerMessage::new(did.clone(), public_key_bytes.clone(), controller);
     let signer = InternalSigner::from_raw_bytes(&private_key_bytes)?;
-    let payload = sign_message(message, &signer).await?;
 
-    // 5. Submit with retry — topic already exists so we owe it a valid publish
-    submit_with_retry(client, topic_id, payload).await?;
+    finalize_did(client, topic_id, message, &signer)
+        .await
+        .map_err(|e| orphan(topic_id, e))?;
 
     Ok(CreateDIDResult {
         did,
@@ -89,9 +64,7 @@ pub async fn create_did(
 /// Creates a DID using an externally-managed signer.
 ///
 /// # Errors
-/// Returns `DIDError::OrphanedTopic` if the topic was created but all submit
-/// attempts failed. The caller should log the contained `topic_id` for
-/// operational visibility.
+/// Same orphaned-topic behavior as `create_did` — see that doc comment.
 pub async fn create_did_with_signer(
     client: &Client,
     network: Network,
@@ -107,9 +80,10 @@ pub async fn create_did_with_signer(
     let did = HederaDid::new(network, base58_key, topic_id_str);
 
     let message = DIDOwnerMessage::new(did.clone(), public_key_bytes.clone(), controller);
-    let payload = sign_message(message, signer).await?;
 
-    submit_with_retry(client, topic_id, payload).await?;
+    finalize_did(client, topic_id, message, signer)
+        .await
+        .map_err(|e| orphan(topic_id, e))?;
 
     Ok(CreateDIDWithSignerResult {
         did,
@@ -121,12 +95,34 @@ pub async fn create_did_with_signer(
 // Private helpers
 // ---------------------------------------------------------------------------
 
-/// Signs a `DIDOwnerMessage` through the lifecycle runner and returns the
-/// serialized payload bytes ready for HCS submission.
+/// Signs and submits the DIDOwner message. Any error here means the caller's
+/// topic is now orphaned.
+async fn finalize_did(
+    client: &Client,
+    topic_id: TopicId,
+    message: DIDOwnerMessage,
+    signer: &dyn Signer,
+) -> Result<(), DIDError> {
+    let payload = sign_message(message, signer).await?;
+    submit_with_retry(client, topic_id, payload).await
+}
+
+/// Prefixes an error's message with `orphaned_topic=<TOPIC_ID>` so the
+/// stranded topic is greppable/parseable from logs. If the message is
+/// already prefixed this way (e.g. bubbled up from `submit_with_retry`),
+/// it's left unchanged rather than double-prefixed.
+fn orphan(topic_id: TopicId, e: DIDError) -> DIDError {
+    let msg = e.to_string();
+    if msg.starts_with("orphaned_topic=") {
+        return e;
+    }
+    DIDError::InternalError(format!("orphaned_topic={} reason={}", topic_id, msg))
+}
+
 async fn sign_message(
     message: DIDOwnerMessage,
     signer: &dyn Signer,
-) -> Result<String, DIDError>{
+) -> Result<String, DIDError> {
     let runner = create_lifecycle()?;
     let mut options = LifecycleRunnerOptions::new(());
     options.signer = Some(signer);
@@ -140,17 +136,14 @@ async fn sign_message(
     signed_message.to_payload(signature)
 }
 
-/// Attempts to submit `payload` to `topic_id`, retrying on transient failures
-/// with exponential backoff.
-///
-/// Backoff schedule (ms): 500 → 1000 → 2000
-///
-/// On total failure, returns `DIDError::OrphanedTopic` containing the topic ID
-/// so the caller can log or alert on the stranded resource.
+/// Attempts to submit `payload` to `topic_id`, retrying with exponential
+/// backoff (500ms, 1000ms, 2000ms). Retries unconditionally for now —
+/// transient-vs-permanent classification is blocked on `hiero_sdk::Error`
+/// shape, separate from this fix.
 async fn submit_with_retry(
     client: &Client,
     topic_id: TopicId,
-    payload: String,       
+    payload: String,
 ) -> Result<(), DIDError> {
     let mut last_err = None;
 
@@ -158,14 +151,32 @@ async fn submit_with_retry(
         match HcsTopic::submit(client, topic_id, payload.clone()).await {
             Ok(_) => return Ok(()),
             Err(e) => {
-                let backoff_ms = SUBMIT_BASE_BACKOFF_MS * (1 << attempt); // 500, 1000, 2000
+                let msg = e.to_string();
+
+                if msg.starts_with("submit_receipt_failed") {
+                    // Transaction may have reached consensus; resubmitting
+                    // risks a duplicate message. Don't retry — surface
+                    // immediately as ambiguous/orphaned.
+                    tracing::error!(
+                        topic_id = %topic_id,
+                        error = %e,
+                        "HCS submit receipt unknown — not retrying to avoid duplicate"
+                    );
+                    return Err(DIDError::InternalError(format!(
+                        "orphaned_topic={} reason={}", topic_id, e
+                    )));
+                }
+
+                // submit_execute_failed (or unrecognized) — safe to retry,
+                // nothing was sent.
+                let backoff_ms = SUBMIT_BASE_BACKOFF_MS * (1 << attempt);
                 tracing::warn!(
                     attempt = attempt + 1,
                     max = SUBMIT_MAX_RETRIES,
                     backoff_ms,
                     topic_id = %topic_id,
                     error = %e,
-                    "HCS submit failed, retrying"
+                    "HCS submit execute failed, retrying"
                 );
                 last_err = Some(e);
                 sleep(Duration::from_millis(backoff_ms)).await;
@@ -173,20 +184,13 @@ async fn submit_with_retry(
         }
     }
 
-    // All retries exhausted — surface a structured error so the caller can
-    // record the orphaned topic ID for manual inspection or alerting.
-    tracing::error!(
-        topic_id = %topic_id,
-        "HCS submit failed after all retries — topic is orphaned"
-    );
-    Err(DIDError::OrphanedTopic {
-        topic_id: topic_id.to_string(),
-        reason: last_err
-            .map(|e| e.to_string())
-            .unwrap_or_else(|| "unknown".into()),
-    })
+    tracing::error!(topic_id = %topic_id, "HCS submit failed after all retries — topic is orphaned");
+    Err(DIDError::InternalError(format!(
+        "orphaned_topic={} reason={}",
+        topic_id,
+        last_err.map(|e| e.to_string()).unwrap_or_else(|| "unknown".into())
+    )))
 }
-
 fn create_lifecycle() -> Result<LifecycleRunner<DIDOwnerMessage, ()>, DIDError> {
     let builder = LifecycleBuilder::new().sign_with_signer("sign")?;
     Ok(LifecycleRunner::new(builder))

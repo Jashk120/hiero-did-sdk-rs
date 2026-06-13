@@ -370,15 +370,17 @@ impl HcsTopic {
         topic_id: TopicId,
         message: impl Into<Vec<u8>>,
     ) -> Result<SubmitMessageResult, DIDError> {
-        let receipt = TopicMessageSubmitTransaction::new()
+        let response = TopicMessageSubmitTransaction::new()
             .topic_id(topic_id)
             .message(message)
             .execute(client)
             .await
-            .map_err(|e| DIDError::InternalError(format!("Failed to submit message: {e}")))?
+            .map_err(|e| DIDError::InternalError(format!("submit_execute_failed: {e}")))?;
+
+        let receipt = response
             .get_receipt(client)
             .await
-            .map_err(|e| DIDError::InternalError(format!("Failed to get message receipt: {e}")))?;
+            .map_err(|e| DIDError::InternalError(format!("submit_receipt_failed: {e}")))?;
 
         Ok(SubmitMessageResult {
             topic_id: topic_id.to_string(),
@@ -386,13 +388,12 @@ impl HcsTopic {
         })
     }
 }
-
-fn key_to_string(key: &Key) -> String {
-    match key {
-        Key::Single(pk) => pk.to_string_raw(),
-        other => format!("{other:?}"),
+    fn key_to_string(key: &Key) -> String {
+        match key {
+            Key::Single(pk) => pk.to_string_raw(),
+            other => format!("{other:?}"),
+        }
     }
-}
 
 #[cfg(test)]
 mod tests {
