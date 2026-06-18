@@ -47,6 +47,7 @@ hiero-did-sdk
   |-- hiero-did-registrar --> hiero-did-hcs
   |                         --> hiero-did-messages --> hiero-did-core
   |                         --> hiero-did-signer ----> hiero-did-core
+  |                         --> hiero-did-lifecycle -> hiero-did-core
   |                         --> hiero-did-core
   |-- hiero-did-resolver ---> hiero-did-messages
   |                         --> hiero-did-signer
@@ -71,7 +72,7 @@ Important boundaries:
 - `registrar` owns DID write semantics and uses `hcs`, `messages`, and signer abstractions to publish DID operation events.
 - `resolver` owns DID read semantics and folds message history into DID documents.
 - `anoncreds` is a registry layer over `hcs`, not a dependency of DID create/update/resolve flows.
-- `lifecycle` is generic orchestration over lifecycle-compatible messages; current registrar CSM code uses matching state/label concepts but does not depend on the lifecycle crate.
+- `lifecycle` is generic orchestration over lifecycle-compatible messages; the registrar uses the lifecycle crate's `LifecycleRunner` to orchestrate all CSM workflows (create, update, deactivate).
 
 ## 3. Crate Responsibilities
 
@@ -133,7 +134,7 @@ DID write orchestration:
 - `create::create_did` / `create_did_with_signer` (local key vs external signer).
 - `update::update_did` / `update_did_with_signer` (batch operation support).
 - `deactivate::deactivate_did` / `deactivate_did_with_signer`.
-- `csm`: client-side message signing (CSM) prepare/submit flows for all operations.
+- `csm`: client-side message signing (CSM) prepare/submit flows for all operations using `hiero-did-lifecycle`.
 - `CsmBatchSigningRequest` / `CsmBatchSubmitRequest`: support for signing multiple operations.
 
 The update path supports verification method (VerificationMethod, Authentication, etc.) and service add/remove operations.
@@ -184,9 +185,10 @@ Local binary crate for ad-hoc experiments. Not part of the public SDK surface or
 3. Submit envelopes in order to the HCS topic.
 
 ### 4.3 Client-Side Message Signing (CSM)
-1. **Prepare**: SDK builds message, calculates bytes, and captures state.
+Leverages the `LifecycleRunner` pattern:
+1. **Prepare**: SDK builds the message, calculates bytes, and pauses the lifecycle, yielding a `RunnerState` representing a pause for signature.
 2. **External Sign**: Client signs bytes outside the SDK.
-3. **Submit**: SDK validates state/signature and submits to HCS.
+3. **Submit**: SDK resumes the lifecycle with the signature, validates, and submits to HCS.
 
 ### 4.4 Resolve DID
 1. Fetch topic message history via `MirrorNodeClient`.

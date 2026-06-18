@@ -2,6 +2,8 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use hiero_did_core::DIDError;
 use serde::Deserialize;
+use crate::topic_reader::TopicReader;
+use async_trait::async_trait;
 
 const TESTNET_MIRROR: &str = "https://testnet.mirrornode.hedera.com";
 const MAINNET_MIRROR: &str = "https://mainnet.mirrornode.hedera.com";
@@ -175,5 +177,12 @@ impl MirrorNodeClient {
         }
 
         Ok(messages)
+    }
+}
+
+#[async_trait]
+impl TopicReader for MirrorNodeClient {
+    async fn get_topic_messages(&self, topic_id: &str) -> Result<Vec<String>, DIDError> {
+        MirrorNodeClient::get_topic_messages(self, topic_id).await
     }
 }

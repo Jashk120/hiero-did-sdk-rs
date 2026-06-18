@@ -21,4 +21,6 @@ pub enum DIDError {
         topic_id: String,
         reason: String,
     },
+    #[error("Representation not supported: {0}")]
+    RepresentationNotSupported(String),
 }

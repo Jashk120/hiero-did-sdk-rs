@@ -4,6 +4,7 @@ use hiero_did_core::{
     KeyCapabilityMethod, KeysUtility, Service, VerificationMethod, VerificationMethodMultibase,
     did::{DID_ROOT_KEY_ID, HederaDid},
 };
+use crate::topic_reader::TopicReader;
 use hiero_did_messages::envelope::HcsEnvelope;
 use hiero_did_messages::events::{
     DIDEvent,
@@ -24,6 +25,15 @@ pub struct DidDocumentBuilder {
 impl DidDocumentBuilder {
     pub fn from(messages: Vec<String>) -> Self {
         Self { messages }
+    }
+    // Fetch messages via any TopicReader implementation, then build as usual.
+    // Lets callers swap REST mirror-node for gRPC without touching resolve logic.
+    pub async fn from_topic_reader(
+        reader: &dyn TopicReader,
+        topic_id: &str,
+    ) -> Result<Self, DIDError> {
+        let messages = reader.get_topic_messages(topic_id).await?;
+        Ok(Self { messages })
     }
 
     pub async fn resolve(&self, did: &HederaDid) -> Result<DIDResolution, DIDError> {

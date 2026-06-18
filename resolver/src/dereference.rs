@@ -1,24 +1,32 @@
 use crate::builder::DidDocumentBuilder;
-use hiero_did_core::{DIDError,HederaDidUrl, DIDDocument, VerificationMethod, Service};
-
-
+use hiero_did_core::{DIDError, HederaDidUrl, DIDDocument, VerificationMethod, Service, Accept, RepresentedDocument};
+use crate::representation::represent;
 
 
 pub enum DereferencedResource {
     VerificationMethod(VerificationMethod),
     Service(Service),
     Document(DIDDocument),
+    Represented(RepresentedDocument),
 }
 
-pub async fn dereference_did(
+    pub async fn dereference_did(
+        did_url: &HederaDidUrl,
+        messages: Vec<String>,
+    ) -> Result<DereferencedResource, DIDError> {
+        dereference_did_with_accept(did_url, messages, Accept::DidLdJson).await
+    }
+
+    pub async fn dereference_did_with_accept(
     did_url: &HederaDidUrl,
     messages: Vec<String>,
-) -> Result<DereferencedResource, DIDError> {
+    accept: Accept,
+    
+    ) -> Result<DereferencedResource, DIDError> {
 
    // resolve the document
     let builder = DidDocumentBuilder::from(messages);
     let resolution = builder.resolve(&did_url.did).await?;
-    let doc = resolution.did_document;
 
     if did_url.path.is_some() || !did_url.params.is_empty() {
         return Err(DIDError::InvalidArgument("Path and query params are not yet supported".into()));
@@ -26,11 +34,17 @@ pub async fn dereference_did(
 
     //no fragment = return whole document
     let fragment = match &did_url.fragment {
-        None => return Ok(DereferencedResource::Document(doc)),
+       None => {
+            if accept == Accept::DidLdJson {
+                return Ok(DereferencedResource::Document(resolution.did_document));
+            }
+            let represented = represent(&resolution, accept)?;
+            return Ok(DereferencedResource::Represented(represented));
+        }
         Some(f) => f,
     };
 
-    //build the full id to search for
+    let doc = &resolution.did_document;
     let full_id = format!("{}#{}", did_url.did.to_did_string(), fragment);
     
     //search verification_method by id

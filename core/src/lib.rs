@@ -4,6 +4,8 @@ pub mod document;
 pub mod keys;
 pub mod signer;
 pub mod did_url;
+pub mod representation;
+
 
 pub use error::DIDError;
 pub use did::HederaDid;
@@ -21,3 +23,4 @@ pub use document::{
 pub use keys::KeysUtility;
 pub use signer::Signer;
 pub use did_url::HederaDidUrl;
+pub use representation::{Accept, RepresentedDocument};
