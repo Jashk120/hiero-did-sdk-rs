@@ -13,7 +13,10 @@ pub fn is_topic_id(s: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{is_hedera_did, is_topic_id};
+    use super::{
+        is_hedera_did,
+        is_topic_id,
+    };
 
     #[test]
     fn validates_topic_id() {

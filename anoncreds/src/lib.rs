@@ -1,6 +1,6 @@
-pub mod utils;
-pub mod types;
 pub mod registry;
+pub mod types;
+pub mod utils;
 
 pub use registry::HederaAnonCredsRegistry;
 pub use types::{
@@ -16,17 +16,17 @@ pub use types::{
     RevocationRegistryPublicKeys,
 };
 pub use utils::{
-    build_anoncreds_identifier,
-    compute_status_list_diff,
-    pack_revocation_entry,
-    parse_anoncreds_identifier,
-    unpack_revocation_entry,
+    ANONCREDS_OBJECT_FAMILY,
+    ANONCREDS_SEPARATOR,
+    ANONCREDS_VERSION,
     AnonCredsIdentifier,
     AnonCredsObjectType,
     RevocationRegistryEntry,
     RevocationRegistryEntryValue,
     RevocationRegistryEntryWrapper,
-    ANONCREDS_OBJECT_FAMILY,
-    ANONCREDS_SEPARATOR,
-    ANONCREDS_VERSION,
+    build_anoncreds_identifier,
+    compute_status_list_diff,
+    pack_revocation_entry,
+    parse_anoncreds_identifier,
+    unpack_revocation_entry,
 };

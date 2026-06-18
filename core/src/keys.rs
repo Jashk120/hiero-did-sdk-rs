@@ -22,7 +22,8 @@ impl KeysUtility {
 
     pub fn from_multibase(s: &str) -> Result<Self, DIDError> {
         let mut chars = s.chars();
-        let prefix = chars.next().ok_or_else(|| DIDError::InvalidMultibase("Empty string".into()))?;
+        let prefix =
+            chars.next().ok_or_else(|| DIDError::InvalidMultibase("Empty string".into()))?;
 
         match prefix {
             'z' => {
@@ -32,13 +33,18 @@ impl KeysUtility {
                     .map_err(|e| DIDError::InvalidMultibase(format!("Invalid base58btc: {}", e)))?;
 
                 // strip multicodec prefix if present
-                if bytes.len() > 2 && bytes[0] == ED25519_MULTICODEC_PREFIX[0] && bytes[1] == ED25519_MULTICODEC_PREFIX[1] {
+                if bytes.len() > 2
+                    && bytes[0] == ED25519_MULTICODEC_PREFIX[0]
+                    && bytes[1] == ED25519_MULTICODEC_PREFIX[1]
+                {
                     Ok(Self { bytes: bytes[2..].to_vec() })
                 } else {
                     Ok(Self { bytes })
                 }
             }
-            _ => Err(DIDError::InvalidMultibase(format!("Unsupported multibase prefix: {}", prefix))),
+            _ => {
+                Err(DIDError::InvalidMultibase(format!("Unsupported multibase prefix: {}", prefix)))
+            }
         }
     }
 

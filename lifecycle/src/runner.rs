@@ -1,13 +1,21 @@
+use std::collections::HashMap;
+
+use hiero_did_core::{
+    DIDError,
+    Signer,
+};
+
 use crate::builder::LifecycleBuilder;
 use crate::message::LifecycleMessage;
-use crate::state::RunnerState;
-use crate::state::RunnerStatus;
+use crate::state::{
+    RunnerState,
+    RunnerStatus,
+};
 use crate::step::LifecycleStepKind;
-use crate::types::Hook;
-use crate::types::LifecycleFuture;
-use hiero_did_core::DIDError;
-use hiero_did_core::Signer;
-use std::collections::HashMap;
+use crate::types::{
+    Hook,
+    LifecycleFuture,
+};
 
 pub struct LifecycleRunnerOptions<'a, C> {
     pub context: C,
@@ -17,11 +25,7 @@ pub struct LifecycleRunnerOptions<'a, C> {
 
 impl<C> LifecycleRunnerOptions<'_, C> {
     pub fn new(context: C) -> Self {
-        Self {
-            context,
-            signer: None,
-            signature: None,
-        }
+        Self { context, signer: None, signature: None }
     }
 }
 
@@ -36,20 +40,14 @@ where
     C: Send,
 {
     pub fn new(builder: LifecycleBuilder<M, C>) -> Self {
-        Self {
-            builder,
-            hooks: HashMap::new(),
-        }
+        Self { builder, hooks: HashMap::new() }
     }
 
     pub fn on_complete<F>(&mut self, label: impl Into<String>, hook: F)
     where
         F: for<'a> Fn(&'a M) -> LifecycleFuture<'a, Result<(), DIDError>> + Send + Sync + 'static,
     {
-        self.hooks
-            .entry(label.into())
-            .or_default()
-            .push(Box::new(hook));
+        self.hooks.entry(label.into()).or_default().push(Box::new(hook));
     }
 
     pub async fn process(
@@ -90,10 +88,7 @@ where
             0
         };
 
-        match self
-            .execute_steps(&mut message, &mut options, start_index)
-            .await
-        {
+        match self.execute_steps(&mut message, &mut options, start_index).await {
             Ok(Some((index, label))) => {
                 Ok(RunnerState::pause(message, options.context, index, label))
             }

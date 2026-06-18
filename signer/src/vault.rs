@@ -1,4 +1,5 @@
-use hiero_did_core::{error::DIDError, signer::Signer};
+use hiero_did_core::error::DIDError;
+use hiero_did_core::signer::Signer;
 
 use crate::vault_api::VaultApi;
 use crate::vault_config::VaultSignerConfig;
@@ -13,11 +14,7 @@ impl VaultSigner {
     pub fn new(cfg: VaultSignerConfig) -> Result<Self, DIDError> {
         let api = VaultApi::new(&cfg)?;
         let public_key = api.fetch_public_key(&cfg.key_name)?;
-        Ok(Self {
-            api,
-            key_name: cfg.key_name,
-            public_key,
-        })
+        Ok(Self { api, key_name: cfg.key_name, public_key })
     }
 }
 

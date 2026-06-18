@@ -1,26 +1,37 @@
-use dotenvy::from_filename;
-use dotenvy::from_filename_override;
-use hiero_did_client::HederaClientConfiguration;
-use hiero_did_client::HederaClientService;
-use hiero_did_client::HederaNetwork;
-use hiero_did_client::NetworkConfig;
+use std::env;
+use std::time::{
+    SystemTime,
+    UNIX_EPOCH,
+};
+
+use dotenvy::{
+    from_filename,
+    from_filename_override,
+};
+use hiero_did_client::{
+    HederaClientConfiguration,
+    HederaClientService,
+    HederaNetwork,
+    NetworkConfig,
+};
 use hiero_did_core::did::Network;
-use hiero_did_registrar::AddService;
-use hiero_did_registrar::DIDUpdateOperation;
-use hiero_did_registrar::prepare_create_did_csm;
-use hiero_did_registrar::prepare_deactivate_did_csm;
-use hiero_did_registrar::prepare_update_did_csm;
-use hiero_did_registrar::submit_create_did_csm;
-use hiero_did_registrar::submit_deactivate_did_csm;
-use hiero_did_registrar::submit_update_did_csm;
-use hiero_did_resolver::DidDocumentBuilder;
-use hiero_did_resolver::MirrorNodeClient;
+use hiero_did_core::keys::KeysUtility;
+use hiero_did_registrar::{
+    AddService,
+    DIDUpdateOperation,
+    prepare_create_did_csm,
+    prepare_deactivate_did_csm,
+    prepare_update_did_csm,
+    submit_create_did_csm,
+    submit_deactivate_did_csm,
+    submit_update_did_csm,
+};
+use hiero_did_resolver::{
+    DidDocumentBuilder,
+    MirrorNodeClient,
+};
 use hiero_did_signer::InternalSigner;
 use hiero_sdk::Client;
-use std::env;
-use std::time::SystemTime;
-use std::time::UNIX_EPOCH;
-use hiero_did_core::keys::KeysUtility;
 
 fn setup_env() {
     let _ = from_filename_override(".env.local");
@@ -28,10 +39,7 @@ fn setup_env() {
 }
 
 fn get_did_network() -> Network {
-    match env::var("HEDERA_NETWORK")
-        .unwrap_or_else(|_| "testnet".to_string())
-        .as_str()
-    {
+    match env::var("HEDERA_NETWORK").unwrap_or_else(|_| "testnet".to_string()).as_str() {
         "mainnet" => Network::Mainnet,
         "local" | "local-node" | "localhost" => Network::Testnet,
         _ => Network::Testnet,
@@ -39,10 +47,7 @@ fn get_did_network() -> Network {
 }
 
 fn get_client_network() -> HederaNetwork {
-    match env::var("HEDERA_NETWORK")
-        .unwrap_or_else(|_| "testnet".to_string())
-        .as_str()
-    {
+    match env::var("HEDERA_NETWORK").unwrap_or_else(|_| "testnet".to_string()).as_str() {
         "mainnet" => HederaNetwork::Mainnet,
         "previewnet" => HederaNetwork::Previewnet,
         "local" | "local-node" | "localhost" => HederaNetwork::LocalNode,
@@ -56,25 +61,15 @@ fn setup_client() -> Client {
     let operator_id = env::var("HEDERA_ACCOUNT_ID").expect("HEDERA_ACCOUNT_ID not set");
     let operator_key = env::var("HEDERA_PRIVATE_KEY").expect("HEDERA_PRIVATE_KEY not set");
     let service = HederaClientService::new(HederaClientConfiguration {
-        networks: vec![NetworkConfig {
-            network: get_client_network(),
-            operator_id,
-            operator_key,
-        }],
+        networks: vec![NetworkConfig { network: get_client_network(), operator_id, operator_key }],
     })
     .expect("Failed to initialize HederaClientService");
 
-    service
-        .get_client(None)
-        .expect("Failed to build Hedera client")
+    service.get_client(None).expect("Failed to build Hedera client")
 }
 
 fn unique_suffix() -> String {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("clock")
-        .as_nanos()
-        .to_string()
+    SystemTime::now().duration_since(UNIX_EPOCH).expect("clock").as_nanos().to_string()
 }
 
 async fn resolve_until<F>(
@@ -113,21 +108,15 @@ async fn csm_create_update_deactivate_roundtrip() {
             .expect("prepare create csm");
     let did = create_request.state.did.parse().expect("created did");
     let create_signature = signer.sign(&create_request.message_bytes);
-    let create_submit = create_request
-        .into_submit_request(create_signature)
-        .expect("create submit request");
-    submit_create_did_csm(&client, create_submit)
-        .await
-        .expect("submit create csm");
+    let create_submit =
+        create_request.into_submit_request(create_signature).expect("create submit request");
+    submit_create_did_csm(&client, create_submit).await.expect("submit create csm");
 
     let mirror = MirrorNodeClient::from_env();
     let create_resolution = resolve_until(&mirror, &did, |_| true).await; // first resolution is fine here
 
     assert_eq!(create_resolution.did_document.id, did.to_string());
-    assert_eq!(
-        create_resolution.did_document_metadata.deactivated,
-        Some(false)
-    );
+    assert_eq!(create_resolution.did_document_metadata.deactivated, Some(false));
 
     let suffix = unique_suffix();
     let update_request = prepare_update_did_csm(
@@ -140,24 +129,21 @@ async fn csm_create_update_deactivate_roundtrip() {
     )
     .await
     .expect("prepare update csm");
-    let update_signatures = update_request
-        .requests
-        .iter()
-        .map(|request| signer.sign(&request.message_bytes))
-        .collect();
-    let update_submit = update_request
-        .into_submit_request(update_signatures)
-        .expect("update submit request");
-    let update_result = submit_update_did_csm(&client, update_submit)
-        .await
-        .expect("submit update csm");
+    let update_signatures =
+        update_request.requests.iter().map(|request| signer.sign(&request.message_bytes)).collect();
+    let update_submit =
+        update_request.into_submit_request(update_signatures).expect("update submit request");
+    let update_result =
+        submit_update_did_csm(&client, update_submit).await.expect("submit update csm");
     assert_eq!(update_result.operations_applied, 1);
 
     let update_resolution = resolve_until(&mirror, &did, |r| {
-        r.did_document.service.as_ref().map_or(false, |svcs| {
-            svcs.iter().any(|s| s.id.ends_with(&format!("#svc-{suffix}")))
-        })
-    }).await;
+        r.did_document
+            .service
+            .as_ref()
+            .map_or(false, |svcs| svcs.iter().any(|s| s.id.ends_with(&format!("#svc-{suffix}"))))
+    })
+    .await;
     assert!(
         update_resolution
             .did_document
@@ -167,22 +153,17 @@ async fn csm_create_update_deactivate_roundtrip() {
             .any(|service| service.id.ends_with(&format!("#svc-{suffix}")))
     );
 
-    let deactivate_request = prepare_deactivate_did_csm(did.clone()).await.expect("prepare deactivate");
+    let deactivate_request =
+        prepare_deactivate_did_csm(did.clone()).await.expect("prepare deactivate");
     let deactivate_signature = signer.sign(&deactivate_request.message_bytes);
     let deactivate_submit = deactivate_request
         .into_submit_request(deactivate_signature)
         .expect("deactivate submit request");
-    submit_deactivate_did_csm(&client, deactivate_submit)
-        .await
-        .expect("submit deactivate csm");
+    submit_deactivate_did_csm(&client, deactivate_submit).await.expect("submit deactivate csm");
 
-    let deactivate_resolution = resolve_until(&mirror, &did, |r| {
-        r.did_document_metadata.deactivated == Some(true)
-    }).await;
-    assert_eq!(
-        deactivate_resolution.did_document_metadata.deactivated,
-        Some(true)
-    );
+    let deactivate_resolution =
+        resolve_until(&mirror, &did, |r| r.did_document_metadata.deactivated == Some(true)).await;
+    assert_eq!(deactivate_resolution.did_document_metadata.deactivated, Some(true));
 }
 
 #[tokio::test]
@@ -199,12 +180,9 @@ async fn csm_update_multi_operation_batch() {
             .expect("prepare create csm");
     let did = create_request.state.did.parse().expect("created did");
     let create_signature = signer.sign(&create_request.message_bytes);
-    let create_submit = create_request
-        .into_submit_request(create_signature)
-        .expect("create submit request");
-    submit_create_did_csm(&client, create_submit)
-        .await
-        .expect("submit create csm");
+    let create_submit =
+        create_request.into_submit_request(create_signature).expect("create submit request");
+    submit_create_did_csm(&client, create_submit).await.expect("submit create csm");
 
     let mirror = MirrorNodeClient::from_env();
     resolve_until(&mirror, &did, |_| true).await;
@@ -222,17 +200,11 @@ async fn csm_update_multi_operation_batch() {
     )
     .await
     .expect("prepare setup update csm");
-    let setup_signatures = setup_update
-        .requests
-        .iter()
-        .map(|request| signer.sign(&request.message_bytes))
-        .collect();
-    let setup_submit = setup_update
-        .into_submit_request(setup_signatures)
-        .expect("setup submit request");
-    submit_update_did_csm(&client, setup_submit)
-        .await
-        .expect("submit setup update csm");
+    let setup_signatures =
+        setup_update.requests.iter().map(|request| signer.sign(&request.message_bytes)).collect();
+    let setup_submit =
+        setup_update.into_submit_request(setup_signatures).expect("setup submit request");
+    submit_update_did_csm(&client, setup_submit).await.expect("submit setup update csm");
 
     resolve_until(&mirror, &did, |_| true).await;
 
@@ -266,25 +238,22 @@ async fn csm_update_multi_operation_batch() {
 
     assert_eq!(batch_update.requests.len(), 3);
 
-    let batch_signatures = batch_update
-        .requests
-        .iter()
-        .map(|request| signer.sign(&request.message_bytes))
-        .collect();
-    let batch_submit = batch_update
-        .into_submit_request(batch_signatures)
-        .expect("batch submit request");
-    let batch_result = submit_update_did_csm(&client, batch_submit)
-        .await
-        .expect("submit batch update csm");
+    let batch_signatures =
+        batch_update.requests.iter().map(|request| signer.sign(&request.message_bytes)).collect();
+    let batch_submit =
+        batch_update.into_submit_request(batch_signatures).expect("batch submit request");
+    let batch_result =
+        submit_update_did_csm(&client, batch_submit).await.expect("submit batch update csm");
     assert_eq!(batch_result.operations_applied, 3);
 
     let resolution = resolve_until(&mirror, &did, |r| {
         r.did_document.verification_method.iter().any(|vm| vm.id() == vm_id)
-            && r.did_document.service.as_ref().map_or(false, |svcs| {
-                svcs.iter().any(|s| s.id == added_service_id)
-            })
-    }).await;
+            && r.did_document
+                .service
+                .as_ref()
+                .map_or(false, |svcs| svcs.iter().any(|s| s.id == added_service_id))
+    })
+    .await;
 
     let verification_methods = resolution.did_document.verification_method;
     assert!(verification_methods.iter().any(|vm| vm.id() == vm_id));

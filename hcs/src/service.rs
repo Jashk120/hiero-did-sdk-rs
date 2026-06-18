@@ -1,12 +1,25 @@
-use hiero_did_client::HederaClientService;
-use hiero_did_core::{DIDError, Signer};
-use hiero_sdk::TopicId;
 use std::sync::Arc;
+
+use hiero_did_client::HederaClientService;
+use hiero_did_core::{
+    DIDError,
+    Signer,
+};
+use hiero_sdk::TopicId;
 
 use crate::cache::HcsCacheService;
 use crate::hcs::{
-    CreateTopicProps, DeleteTopicProps, GetTopicMessagesProps, HcsFileService, HcsMessage,
-    HcsTopic, ResolveFileProps, SubmitFileProps, SubmitMessageResult, TopicInfo, TopicMessageData,
+    CreateTopicProps,
+    DeleteTopicProps,
+    GetTopicMessagesProps,
+    HcsFileService,
+    HcsMessage,
+    HcsTopic,
+    ResolveFileProps,
+    SubmitFileProps,
+    SubmitMessageResult,
+    TopicInfo,
+    TopicMessageData,
     UpdateTopicProps,
 };
 
@@ -17,17 +30,12 @@ pub struct HederaHcsService {
 
 impl HederaHcsService {
     pub fn new(client_service: HederaClientService, cache: Option<HcsCacheService>) -> Self {
-        Self {
-            client_service,
-            cache,
-        }
+        Self { client_service, cache }
     }
 
     pub async fn create_topic(&self, network_name: Option<&str>) -> Result<TopicId, DIDError> {
         self.client_service
-            .with_client(network_name, |client| async move {
-                HcsTopic::create(&client).await
-            })
+            .with_client(network_name, |client| async move { HcsTopic::create(&client).await })
             .await
     }
 
@@ -61,9 +69,10 @@ impl HederaHcsService {
         props: UpdateTopicProps,
     ) -> Result<(), DIDError> {
         self.client_service
-            .with_client(network_name, |client| async move {
-                HcsTopic::update(&client, props).await
-            })
+            .with_client(
+                network_name,
+                |client| async move { HcsTopic::update(&client, props).await },
+            )
             .await
     }
 
@@ -73,9 +82,10 @@ impl HederaHcsService {
         topic_id: TopicId,
     ) -> Result<(), DIDError> {
         self.client_service
-            .with_client(network_name, |client| async move {
-                HcsTopic::delete(&client, topic_id).await
-            })
+            .with_client(
+                network_name,
+                |client| async move { HcsTopic::delete(&client, topic_id).await },
+            )
             .await
     }
 

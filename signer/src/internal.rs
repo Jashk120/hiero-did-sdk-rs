@@ -1,5 +1,14 @@
-use ed25519_dalek::{Signature, Signer as DalekSigner, SigningKey, Verifier, VerifyingKey};
-use hiero_did_core::{DIDError, Signer};
+use ed25519_dalek::{
+    Signature,
+    Signer as DalekSigner,
+    SigningKey,
+    Verifier,
+    VerifyingKey,
+};
+use hiero_did_core::{
+    DIDError,
+    Signer,
+};
 
 pub struct InternalSigner {
     signing_key: SigningKey,
@@ -7,9 +16,7 @@ pub struct InternalSigner {
 
 impl InternalSigner {
     pub fn from_bytes(bytes: &[u8; 32]) -> Result<Self, DIDError> {
-        Ok(Self {
-            signing_key: SigningKey::from_bytes(bytes),
-        })
+        Ok(Self { signing_key: SigningKey::from_bytes(bytes) })
     }
 
     pub fn from_raw_bytes(bytes: &[u8]) -> Result<Self, DIDError> {
@@ -64,8 +71,12 @@ impl InternalVerifier {
 
 #[cfg(test)]
 mod tests {
-    use super::{InternalSigner, InternalVerifier};
     use hiero_did_core::Signer;
+
+    use super::{
+        InternalSigner,
+        InternalVerifier,
+    };
 
     #[test]
     fn sign_and_verify_happy_path() {
@@ -75,11 +86,7 @@ mod tests {
             InternalVerifier::from_bytes(&signer.verifying_key_bytes()).expect("valid verifier");
         let msg = b"hello-did";
         let sig = signer.sign_bytes(msg).expect("sign must succeed");
-        assert!(
-            verifier
-                .verify(msg, &sig)
-                .expect("verification must succeed")
-        );
+        assert!(verifier.verify(msg, &sig).expect("verification must succeed"));
     }
 
     #[test]
@@ -89,11 +96,7 @@ mod tests {
         let verifier =
             InternalVerifier::from_bytes(&signer.verifying_key_bytes()).expect("valid verifier");
         let sig = signer.sign_bytes(b"msg-a").expect("sign must succeed");
-        assert!(
-            !verifier
-                .verify(b"msg-b", &sig)
-                .expect("verification must run")
-        );
+        assert!(!verifier.verify(b"msg-b", &sig).expect("verification must run"));
     }
 
     #[test]
@@ -108,9 +111,7 @@ mod tests {
         let signer = InternalSigner::from_bytes(&key).expect("valid signer");
         let signer_ref: &dyn hiero_did_core::Signer = &signer;
 
-        let sig = signer_ref
-            .sign_bytes(b"trait-object-message")
-            .expect("sign through trait");
+        let sig = signer_ref.sign_bytes(b"trait-object-message").expect("sign through trait");
 
         assert_eq!(signer_ref.public_key_bytes().len(), 32);
         assert_eq!(sig.len(), 64);

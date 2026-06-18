@@ -1,6 +1,12 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{
+    Arc,
+    Mutex,
+};
 
-use hiero_did_core::{DIDError, Signer};
+use hiero_did_core::{
+    DIDError,
+    Signer,
+};
 use hiero_sdk::PublicKey;
 
 pub(crate) type SigningErrorSlot = Arc<Mutex<Option<DIDError>>>;
@@ -31,9 +37,8 @@ pub(crate) fn sign_with_error_capture(
 }
 
 pub(crate) fn take_signing_error(errors: &SigningErrorSlot) -> Result<(), DIDError> {
-    let mut slot = errors
-        .lock()
-        .map_err(|_| DIDError::InternalError("signing error lock poisoned".into()))?;
+    let mut slot =
+        errors.lock().map_err(|_| DIDError::InternalError("signing error lock poisoned".into()))?;
 
     if let Some(err) = slot.take() {
         return Err(err);
@@ -44,9 +49,18 @@ pub(crate) fn take_signing_error(errors: &SigningErrorSlot) -> Result<(), DIDErr
 
 #[cfg(test)]
 mod tests {
-    use super::{sign_with_error_capture, signing_error_slot, take_signing_error};
-    use hiero_did_core::{DIDError, Signer};
     use std::sync::Arc;
+
+    use hiero_did_core::{
+        DIDError,
+        Signer,
+    };
+
+    use super::{
+        sign_with_error_capture,
+        signing_error_slot,
+        take_signing_error,
+    };
 
     struct FailingSigner;
 

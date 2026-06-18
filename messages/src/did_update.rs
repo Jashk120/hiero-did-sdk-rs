@@ -1,9 +1,12 @@
 use hiero_did_core::DIDError;
 use hiero_did_lifecycle::LifecycleMessage;
-use crate::DIDAddVerificationMethodMessage;
-use crate::DIDRemoveVerificationMethodMessage;
-use crate::DIDAddServiceMessage;
-use crate::DIDRemoveServiceMessage;
+
+use crate::{
+    DIDAddServiceMessage,
+    DIDAddVerificationMethodMessage,
+    DIDRemoveServiceMessage,
+    DIDRemoveVerificationMethodMessage,
+};
 
 #[derive(Debug, Clone)]
 pub enum DIDUpdateMessage {

@@ -1,9 +1,10 @@
+use async_trait::async_trait;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use hiero_did_core::DIDError;
 use serde::Deserialize;
+
 use crate::topic_reader::TopicReader;
-use async_trait::async_trait;
 
 const TESTNET_MIRROR: &str = "https://testnet.mirrornode.hedera.com";
 const MAINNET_MIRROR: &str = "https://mainnet.mirrornode.hedera.com";
@@ -35,24 +36,15 @@ pub struct MirrorNodeClient {
 
 impl MirrorNodeClient {
     pub fn for_testnet() -> Self {
-        Self {
-            base_url: TESTNET_MIRROR.to_string(),
-            client: reqwest::Client::new(),
-        }
+        Self { base_url: TESTNET_MIRROR.to_string(), client: reqwest::Client::new() }
     }
 
     pub fn for_mainnet() -> Self {
-        Self {
-            base_url: MAINNET_MIRROR.to_string(),
-            client: reqwest::Client::new(),
-        }
+        Self { base_url: MAINNET_MIRROR.to_string(), client: reqwest::Client::new() }
     }
 
     pub fn for_local() -> Self {
-        Self {
-            base_url: LOCAL_MIRROR.to_string(),
-            client: reqwest::Client::new(),
-        }
+        Self { base_url: LOCAL_MIRROR.to_string(), client: reqwest::Client::new() }
     }
 
     pub fn from_env() -> Self {
@@ -64,10 +56,7 @@ impl MirrorNodeClient {
             }
         });
 
-        Self {
-            base_url,
-            client: reqwest::Client::new(),
-        }
+        Self { base_url, client: reqwest::Client::new() }
     }
 
     /// Poll until at least one message appears on the topic, or timeout.
@@ -168,11 +157,7 @@ impl MirrorNodeClient {
             }
 
             url = body.links.next.map(|next| {
-                if next.starts_with("http") {
-                    next
-                } else {
-                    format!("{}{}", self.base_url, next)
-                }
+                if next.starts_with("http") { next } else { format!("{}{}", self.base_url, next) }
             });
         }
 

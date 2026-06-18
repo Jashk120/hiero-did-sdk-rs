@@ -1,9 +1,17 @@
-use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64;
 use hiero_did_core::DIDError;
 use serde_json;
-use crate::envelope::{HcsEnvelope, HcsMessage};
-use crate::events::{DIDAddServiceEvent, DIDAddServiceEventData};
- 
+
+use crate::envelope::{
+    HcsEnvelope,
+    HcsMessage,
+};
+use crate::events::{
+    DIDAddServiceEvent,
+    DIDAddServiceEventData,
+};
+
 #[derive(Debug, Clone)]
 pub struct DIDAddServiceMessage {
     pub did: String,
@@ -13,13 +21,13 @@ pub struct DIDAddServiceMessage {
     pub service_endpoint: String,
     pub timestamp: String,
 }
- 
+
 impl DIDAddServiceMessage {
     pub fn new(did: String, id: String, service_type: String, service_endpoint: String) -> Self {
         let timestamp = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
         Self { did, id, service_type, service_endpoint, timestamp }
     }
- 
+
     pub fn to_hcs_message(&self) -> Result<HcsMessage, DIDError> {
         let event = DIDAddServiceEvent {
             service: DIDAddServiceEventData {
@@ -38,21 +46,16 @@ impl DIDAddServiceMessage {
             event: Some(event_b64),
         })
     }
- 
+
     pub fn to_payload(&self, signature: &[u8]) -> Result<String, DIDError> {
         let message = self.to_hcs_message()?;
-        let envelope = HcsEnvelope {
-            message,
-            signature: BASE64.encode(signature),
-        };
-        serde_json::to_string(&envelope)
-            .map_err(|e| DIDError::SerializationError(e.to_string()))
+        let envelope = HcsEnvelope { message, signature: BASE64.encode(signature) };
+        serde_json::to_string(&envelope).map_err(|e| DIDError::SerializationError(e.to_string()))
     }
- 
+
     pub fn message_bytes(&self) -> Result<Vec<u8>, DIDError> {
         let message = self.to_hcs_message()?;
-        serde_json::to_vec(&message)
-            .map_err(|e| DIDError::SerializationError(e.to_string()))
+        serde_json::to_vec(&message).map_err(|e| DIDError::SerializationError(e.to_string()))
     }
 }
 

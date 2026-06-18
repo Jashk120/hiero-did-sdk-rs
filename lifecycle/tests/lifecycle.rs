@@ -1,13 +1,20 @@
-use hiero_did_core::DIDError;
-use hiero_did_core::Signer;
-use hiero_did_lifecycle::LifecycleBuilder;
-use hiero_did_lifecycle::LifecycleMessage;
-use hiero_did_lifecycle::LifecycleRunner;
-use hiero_did_lifecycle::LifecycleRunnerOptions;
-use hiero_did_lifecycle::LifecycleStepKind;
-use hiero_did_lifecycle::RunnerStatus;
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::sync::{
+    Arc,
+    Mutex,
+};
+
+use hiero_did_core::{
+    DIDError,
+    Signer,
+};
+use hiero_did_lifecycle::{
+    LifecycleBuilder,
+    LifecycleMessage,
+    LifecycleRunner,
+    LifecycleRunnerOptions,
+    LifecycleStepKind,
+    RunnerStatus,
+};
 
 #[derive(Debug, Clone, Default)]
 struct TestMessage {
@@ -62,30 +69,19 @@ fn builder_indexes_steps_by_label() {
 
     assert_eq!(builder.len(), 2);
     assert_eq!(builder.get_index_by_label("signature"), Some(1));
-    assert_eq!(
-        builder.get_by_index(0).map(|step| step.kind()),
-        Some(&LifecycleStepKind::Pause)
-    );
+    assert_eq!(builder.get_by_index(0).map(|step| step.kind()), Some(&LifecycleStepKind::Pause));
 }
 
 #[tokio::test]
 async fn sign_step_uses_signer_and_sets_signature() {
-    let builder = LifecycleBuilder::<TestMessage>::new()
-        .sign_with_signer("sign")
-        .expect("sign");
+    let builder = LifecycleBuilder::<TestMessage>::new().sign_with_signer("sign").expect("sign");
     let runner = LifecycleRunner::new(builder);
     let signer = TestSigner;
     let mut options = LifecycleRunnerOptions::new(());
     options.signer = Some(&signer);
 
     let state = runner
-        .process(
-            TestMessage {
-                bytes: b"abc".to_vec(),
-                ..Default::default()
-            },
-            options,
-        )
+        .process(TestMessage { bytes: b"abc".to_vec(), ..Default::default() }, options)
         .await
         .expect("process");
 
@@ -113,10 +109,7 @@ async fn external_signature_flow_pauses_and_resumes() {
 
     let first = runner
         .process(
-            TestMessage {
-                bytes: b"abc".to_vec(),
-                ..Default::default()
-            },
+            TestMessage { bytes: b"abc".to_vec(), ..Default::default() },
             LifecycleRunnerOptions::new(()),
         )
         .await
@@ -127,25 +120,17 @@ async fn external_signature_flow_pauses_and_resumes() {
 
     let mut signed_options = LifecycleRunnerOptions::new(());
     signed_options.signature = Some(vec![1, 2, 3]);
-    let second = runner
-        .resume(first, signed_options)
-        .await
-        .expect("resume with signature");
+    let second = runner.resume(first, signed_options).await.expect("resume with signature");
 
     assert_eq!(second.status, RunnerStatus::Pause);
     assert_eq!(second.label, "pause-before-publish");
     assert_eq!(second.message.signature, Some(vec![1, 2, 3]));
 
-    let final_state = runner
-        .resume(second, LifecycleRunnerOptions::new(()))
-        .await
-        .expect("publish resume");
+    let final_state =
+        runner.resume(second, LifecycleRunnerOptions::new(())).await.expect("publish resume");
 
     assert_eq!(final_state.status, RunnerStatus::Success);
-    assert_eq!(
-        final_state.message.events.last(),
-        Some(&"published".to_string())
-    );
+    assert_eq!(final_state.message.events.last(), Some(&"published".to_string()));
 }
 
 #[tokio::test]
@@ -172,10 +157,7 @@ async fn hooks_for_pause_run_after_resume() {
         .process(TestMessage::default(), LifecycleRunnerOptions::new(()))
         .await
         .expect("pause");
-    let state = runner
-        .resume(paused, LifecycleRunnerOptions::new(()))
-        .await
-        .expect("resume");
+    let state = runner.resume(paused, LifecycleRunnerOptions::new(())).await.expect("resume");
 
     assert_eq!(state.status, RunnerStatus::Success);
     assert_eq!(state.message.events, vec!["next"]);

@@ -1,12 +1,25 @@
-use hiero_did_core::Signer;
+use std::time::Duration;
+
 use hiero_did_core::did::Network;
-use hiero_did_core::{DIDError, HederaDid, KeysUtility};
+use hiero_did_core::{
+    DIDError,
+    HederaDid,
+    KeysUtility,
+    Signer,
+};
 use hiero_did_hcs::HcsTopic;
-use hiero_did_lifecycle::{LifecycleBuilder, LifecycleRunner, LifecycleRunnerOptions};
+use hiero_did_lifecycle::{
+    LifecycleBuilder,
+    LifecycleRunner,
+    LifecycleRunnerOptions,
+};
 use hiero_did_messages::DIDOwnerMessage;
 use hiero_did_signer::InternalSigner;
-use hiero_sdk::{Client, PrivateKey, TopicId};
-use std::time::Duration;
+use hiero_sdk::{
+    Client,
+    PrivateKey,
+    TopicId,
+};
 use tokio::time::sleep;
 
 const SUBMIT_MAX_RETRIES: u32 = 3;
@@ -50,15 +63,9 @@ pub async fn create_did(
     let message = DIDOwnerMessage::new(did.clone(), public_key_bytes.clone(), controller);
     let signer = InternalSigner::from_raw_bytes(&private_key_bytes)?;
 
-    finalize_did(client, topic_id, message, &signer)
-        .await
-        .map_err(|e| orphan(topic_id, e))?;
+    finalize_did(client, topic_id, message, &signer).await.map_err(|e| orphan(topic_id, e))?;
 
-    Ok(CreateDIDResult {
-        did,
-        private_key_bytes,
-        public_key_bytes,
-    })
+    Ok(CreateDIDResult { did, private_key_bytes, public_key_bytes })
 }
 
 /// Creates a DID using an externally-managed signer.
@@ -81,14 +88,9 @@ pub async fn create_did_with_signer(
 
     let message = DIDOwnerMessage::new(did.clone(), public_key_bytes.clone(), controller);
 
-    finalize_did(client, topic_id, message, signer)
-        .await
-        .map_err(|e| orphan(topic_id, e))?;
+    finalize_did(client, topic_id, message, signer).await.map_err(|e| orphan(topic_id, e))?;
 
-    Ok(CreateDIDWithSignerResult {
-        did,
-        public_key_bytes,
-    })
+    Ok(CreateDIDWithSignerResult { did, public_key_bytes })
 }
 
 // ---------------------------------------------------------------------------
@@ -119,19 +121,17 @@ fn orphan(topic_id: TopicId, e: DIDError) -> DIDError {
     DIDError::InternalError(format!("orphaned_topic={} reason={}", topic_id, msg))
 }
 
-async fn sign_message(
-    message: DIDOwnerMessage,
-    signer: &dyn Signer,
-) -> Result<String, DIDError> {
+async fn sign_message(message: DIDOwnerMessage, signer: &dyn Signer) -> Result<String, DIDError> {
     let runner = create_lifecycle()?;
     let mut options = LifecycleRunnerOptions::new(());
     options.signer = Some(signer);
 
     let runner_state = runner.process(message, options).await?;
     let signed_message = runner_state.message;
-    let signature = signed_message.signature.as_ref().ok_or_else(|| {
-        DIDError::InternalError("Lifecycle failed to attach signature".into())
-    })?;
+    let signature = signed_message
+        .signature
+        .as_ref()
+        .ok_or_else(|| DIDError::InternalError("Lifecycle failed to attach signature".into()))?;
 
     signed_message.to_payload(signature)
 }
@@ -163,7 +163,8 @@ async fn submit_with_retry(
                         "HCS submit receipt unknown — not retrying to avoid duplicate"
                     );
                     return Err(DIDError::InternalError(format!(
-                        "orphaned_topic={} reason={}", topic_id, e
+                        "orphaned_topic={} reason={}",
+                        topic_id, e
                     )));
                 }
 
@@ -206,8 +207,7 @@ mod tests {
     /// This test proves that `contains()` matches while `starts_with()` would not.
     #[test]
     fn submit_receipt_error_is_detected_by_contains() {
-        let inner =
-            DIDError::InternalError("submit_receipt_failed: status UNKNOWN".into());
+        let inner = DIDError::InternalError("submit_receipt_failed: status UNKNOWN".into());
         let rendered = inner.to_string();
 
         // The rendered form has the thiserror prefix, so starts_with would fail:
@@ -230,9 +230,7 @@ mod tests {
 
         // Simulate an error that already carries the orphaned_topic tag
         // (e.g. bubbled up from submit_with_retry → finalize_did).
-        let already_tagged = DIDError::InternalError(
-            "orphaned_topic=0.0.12345 reason=boom".into(),
-        );
+        let already_tagged = DIDError::InternalError("orphaned_topic=0.0.12345 reason=boom".into());
 
         let result = orphan(topic_id, already_tagged);
         let msg = result.to_string();
@@ -257,13 +255,7 @@ mod tests {
         let result = orphan(topic_id, fresh);
         let msg = result.to_string();
 
-        assert!(
-            msg.contains("orphaned_topic=0.0.99999"),
-            "must contain orphaned_topic tag: {msg}"
-        );
-        assert!(
-            msg.contains("connection refused"),
-            "must contain original reason: {msg}"
-        );
+        assert!(msg.contains("orphaned_topic=0.0.99999"), "must contain orphaned_topic tag: {msg}");
+        assert!(msg.contains("connection refused"), "must contain original reason: {msg}");
     }
 }

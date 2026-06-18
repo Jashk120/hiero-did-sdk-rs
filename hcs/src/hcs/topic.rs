@@ -1,15 +1,27 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use hiero_did_core::{DIDError, Signer};
+use hiero_did_core::{
+    DIDError,
+    Signer,
+};
 use hiero_sdk::{
-    Client, Key, TopicCreateTransaction, TopicDeleteTransaction, TopicId, TopicInfoQuery,
-    TopicMessageSubmitTransaction, TopicUpdateTransaction,
+    Client,
+    Key,
+    TopicCreateTransaction,
+    TopicDeleteTransaction,
+    TopicId,
+    TopicInfoQuery,
+    TopicMessageSubmitTransaction,
+    TopicUpdateTransaction,
 };
 use time::OffsetDateTime;
 
 use crate::hcs::signing::{
-    public_key_from_signer, sign_with_error_capture, signing_error_slot, take_signing_error,
+    public_key_from_signer,
+    sign_with_error_capture,
+    signing_error_slot,
+    take_signing_error,
 };
 use crate::shared::wait_for_changes;
 
@@ -86,10 +98,7 @@ impl HcsTopic {
     pub async fn create_with_memo(client: &Client, memo: &str) -> Result<TopicId, DIDError> {
         Self::create_with_props(
             client,
-            CreateTopicProps {
-                topic_memo: Some(memo.to_string()),
-                ..Default::default()
-            },
+            CreateTopicProps { topic_memo: Some(memo.to_string()), ..Default::default() },
         )
         .await
     }
@@ -136,9 +145,7 @@ impl HcsTopic {
             Ok(response) => response,
             Err(e) => {
                 take_signing_error(&signing_errors)?;
-                return Err(DIDError::InternalError(format!(
-                    "Failed to create topic: {e}"
-                )));
+                return Err(DIDError::InternalError(format!("Failed to create topic: {e}")));
             }
         };
         take_signing_error(&signing_errors)?;
@@ -228,9 +235,7 @@ impl HcsTopic {
             Ok(response) => response,
             Err(e) => {
                 take_signing_error(&signing_errors)?;
-                return Err(DIDError::InternalError(format!(
-                    "Failed to update topic: {e}"
-                )));
+                return Err(DIDError::InternalError(format!("Failed to update topic: {e}")));
             }
         };
         take_signing_error(&signing_errors)?;
@@ -287,11 +292,7 @@ impl HcsTopic {
     pub async fn delete(client: &Client, topic_id: TopicId) -> Result<(), DIDError> {
         Self::delete_with_props(
             client,
-            DeleteTopicProps {
-                topic_id,
-                wait_for_visibility: false,
-                wait_timeout_ms: None,
-            },
+            DeleteTopicProps { topic_id, wait_for_visibility: false, wait_timeout_ms: None },
         )
         .await
     }
@@ -388,12 +389,12 @@ impl HcsTopic {
         })
     }
 }
-    fn key_to_string(key: &Key) -> String {
-        match key {
-            Key::Single(pk) => pk.to_string_raw(),
-            other => format!("{other:?}"),
-        }
+fn key_to_string(key: &Key) -> String {
+    match key {
+        Key::Single(pk) => pk.to_string_raw(),
+        other => format!("{other:?}"),
     }
+}
 
 #[cfg(test)]
 mod tests {

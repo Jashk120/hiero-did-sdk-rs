@@ -1,4 +1,7 @@
-use hiero_did_core::{DIDError, HederaDid};
+use hiero_did_core::{
+    DIDError,
+    HederaDid,
+};
 
 /// Parse a did:hedera string into a HederaDid
 pub fn parse_did(did: &str) -> Result<HederaDid, DIDError> {

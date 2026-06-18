@@ -1,10 +1,21 @@
-use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
-use hiero_did_core::{DIDError, HederaDid, KeysUtility};
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64;
+use hiero_did_core::{
+    DIDError,
+    HederaDid,
+    KeysUtility,
+};
 use hiero_did_lifecycle::LifecycleMessage;
 use serde_json;
 
-use crate::envelope::{HcsEnvelope, HcsMessage};
-use crate::events::{DIDOwnerEvent, DIDOwnerEventData};
+use crate::envelope::{
+    HcsEnvelope,
+    HcsMessage,
+};
+use crate::events::{
+    DIDOwnerEvent,
+    DIDOwnerEventData,
+};
 
 pub struct DIDOwnerMessage {
     pub did: HederaDid,
@@ -16,19 +27,9 @@ pub struct DIDOwnerMessage {
 }
 
 impl DIDOwnerMessage {
-    pub fn new(
-        did: HederaDid,
-        public_key_bytes: Vec<u8>,
-        controller: Option<String>,
-    ) -> Self {
+    pub fn new(did: HederaDid, public_key_bytes: Vec<u8>, controller: Option<String>) -> Self {
         let timestamp = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
-        Self {
-            did,
-            public_key_bytes,
-            timestamp,
-            controller,
-            signature: None,
-        }
+        Self { did, public_key_bytes, timestamp, controller, signature: None }
     }
 
     /// Build the HcsMessage — this is what gets signed
@@ -61,19 +62,14 @@ impl DIDOwnerMessage {
     /// Build the signed envelope ready for HCS submission
     pub fn to_payload(&self, signature: &[u8]) -> Result<String, DIDError> {
         let message = self.to_hcs_message()?;
-        let envelope = HcsEnvelope {
-            message,
-            signature: BASE64.encode(signature),
-        };
-        serde_json::to_string(&envelope)
-            .map_err(|e| DIDError::SerializationError(e.to_string()))
+        let envelope = HcsEnvelope { message, signature: BASE64.encode(signature) };
+        serde_json::to_string(&envelope).map_err(|e| DIDError::SerializationError(e.to_string()))
     }
 
     /// The bytes that must be signed — JSON.stringify(message)
     pub fn message_bytes(&self) -> Result<Vec<u8>, DIDError> {
         let message = self.to_hcs_message()?;
-        serde_json::to_vec(&message)
-            .map_err(|e| DIDError::SerializationError(e.to_string()))
+        serde_json::to_vec(&message).map_err(|e| DIDError::SerializationError(e.to_string()))
     }
 }
 

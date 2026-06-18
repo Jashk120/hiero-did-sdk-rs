@@ -1,8 +1,13 @@
-use crate::step::LifecycleStep;
-use crate::step::LifecycleStepKind;
-use crate::types::CatchStep;
-use crate::types::LifecycleFuture;
 use hiero_did_core::DIDError;
+
+use crate::step::{
+    LifecycleStep,
+    LifecycleStepKind,
+};
+use crate::types::{
+    CatchStep,
+    LifecycleFuture,
+};
 
 pub struct LifecycleBuilder<M, C = ()> {
     pub(crate) steps: Vec<LifecycleStep<M, C>>,
@@ -17,10 +22,7 @@ impl<M, C> Default for LifecycleBuilder<M, C> {
 
 impl<M, C> LifecycleBuilder<M, C> {
     pub fn new() -> Self {
-        Self {
-            steps: Vec::new(),
-            catch_step: None,
-        }
+        Self { steps: Vec::new(), catch_step: None }
     }
 
     pub fn len(&self) -> usize {
@@ -89,11 +91,7 @@ impl<M, C> LifecycleBuilder<M, C> {
     pub fn pause(mut self, label: impl Into<String>) -> Result<Self, DIDError> {
         let label = label.into();
         self.ensure_unique_label(&label)?;
-        self.steps.push(LifecycleStep {
-            label,
-            kind: LifecycleStepKind::Pause,
-            callback: None,
-        });
+        self.steps.push(LifecycleStep { label, kind: LifecycleStepKind::Pause, callback: None });
         Ok(self)
     }
 

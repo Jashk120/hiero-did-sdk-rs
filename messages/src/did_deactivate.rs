@@ -1,6 +1,14 @@
-use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
-use hiero_did_core::{DIDError, HederaDid};
-use crate::envelope::{HcsEnvelope, HcsMessage};
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64;
+use hiero_did_core::{
+    DIDError,
+    HederaDid,
+};
+
+use crate::envelope::{
+    HcsEnvelope,
+    HcsMessage,
+};
 
 #[derive(Debug, Clone)]
 pub struct DIDDeactivateMessage {
@@ -26,18 +34,13 @@ impl DIDDeactivateMessage {
 
     pub fn to_payload(&self, signature: &[u8]) -> Result<String, DIDError> {
         let message = self.to_hcs_message()?;
-        let envelope = HcsEnvelope {
-            message,
-            signature: BASE64.encode(signature),
-        };
-        serde_json::to_string(&envelope)
-            .map_err(|e| DIDError::SerializationError(e.to_string()))
+        let envelope = HcsEnvelope { message, signature: BASE64.encode(signature) };
+        serde_json::to_string(&envelope).map_err(|e| DIDError::SerializationError(e.to_string()))
     }
 
     pub fn message_bytes(&self) -> Result<Vec<u8>, DIDError> {
         let message = self.to_hcs_message()?;
-        serde_json::to_vec(&message)
-            .map_err(|e| DIDError::SerializationError(e.to_string()))
+        serde_json::to_vec(&message).map_err(|e| DIDError::SerializationError(e.to_string()))
     }
 }
 
@@ -55,9 +58,11 @@ impl hiero_did_lifecycle::LifecycleMessage for DIDDeactivateMessage {
 
 #[cfg(test)]
 mod tests {
+    use hiero_did_core::HederaDid;
+    use hiero_did_core::did::Network;
+
     use super::DIDDeactivateMessage;
     use crate::envelope::HcsEnvelope;
-    use hiero_did_core::{did::Network, HederaDid};
 
     #[test]
     fn builds_deactivate_payload() {
@@ -66,6 +71,6 @@ mod tests {
         let payload = msg.to_payload(&[5u8; 64]).expect("payload");
         let envelope: HcsEnvelope = serde_json::from_str(&payload).expect("valid envelope");
         assert_eq!(envelope.message.operation, "delete");
-        assert!(envelope.message.event.is_none());  // add this assertion
+        assert!(envelope.message.event.is_none()); // add this assertion
     }
 }

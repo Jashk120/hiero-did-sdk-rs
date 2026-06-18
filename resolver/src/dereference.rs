@@ -1,7 +1,15 @@
-use crate::builder::DidDocumentBuilder;
-use hiero_did_core::{DIDError, HederaDidUrl, DIDDocument, VerificationMethod, Service, Accept, RepresentedDocument};
-use crate::representation::represent;
+use hiero_did_core::{
+    Accept,
+    DIDDocument,
+    DIDError,
+    HederaDidUrl,
+    RepresentedDocument,
+    Service,
+    VerificationMethod,
+};
 
+use crate::builder::DidDocumentBuilder;
+use crate::representation::represent;
 
 pub enum DereferencedResource {
     VerificationMethod(VerificationMethod),
@@ -10,31 +18,31 @@ pub enum DereferencedResource {
     Represented(RepresentedDocument),
 }
 
-    pub async fn dereference_did(
-        did_url: &HederaDidUrl,
-        messages: Vec<String>,
-    ) -> Result<DereferencedResource, DIDError> {
-        dereference_did_with_accept(did_url, messages, Accept::DidLdJson).await
-    }
+pub async fn dereference_did(
+    did_url: &HederaDidUrl,
+    messages: Vec<String>,
+) -> Result<DereferencedResource, DIDError> {
+    dereference_did_with_accept(did_url, messages, Accept::DidLdJson).await
+}
 
-    pub async fn dereference_did_with_accept(
+pub async fn dereference_did_with_accept(
     did_url: &HederaDidUrl,
     messages: Vec<String>,
     accept: Accept,
-    
-    ) -> Result<DereferencedResource, DIDError> {
-
-   // resolve the document
+) -> Result<DereferencedResource, DIDError> {
+    // resolve the document
     let builder = DidDocumentBuilder::from(messages);
     let resolution = builder.resolve(&did_url.did).await?;
 
     if did_url.path.is_some() || !did_url.params.is_empty() {
-        return Err(DIDError::InvalidArgument("Path and query params are not yet supported".into()));
+        return Err(DIDError::InvalidArgument(
+            "Path and query params are not yet supported".into(),
+        ));
     }
 
     //no fragment = return whole document
     let fragment = match &did_url.fragment {
-       None => {
+        None => {
             if accept == Accept::DidLdJson {
                 return Ok(DereferencedResource::Document(resolution.did_document));
             }
@@ -46,7 +54,7 @@ pub enum DereferencedResource {
 
     let doc = &resolution.did_document;
     let full_id = format!("{}#{}", did_url.did.to_did_string(), fragment);
-    
+
     //search verification_method by id
     if let Some(vm) = doc.verification_method.iter().find(|vm| vm.id() == full_id) {
         return Ok(DereferencedResource::VerificationMethod(vm.clone()));
@@ -57,18 +65,23 @@ pub enum DereferencedResource {
             return Ok(DereferencedResource::Service(svc.clone()));
         }
     }
-    
+
     //nothing found
     Err(DIDError::NotFound(format!("No resource found for: {}", full_id)))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use hiero_did_core::{HederaDid, HederaDidUrl, KeysUtility};
     use hiero_did_core::did::Network;
-    use hiero_did_signer::InternalSigner;
+    use hiero_did_core::{
+        HederaDid,
+        HederaDidUrl,
+        KeysUtility,
+    };
     use hiero_did_messages::DIDOwnerMessage;
+    use hiero_did_signer::InternalSigner;
+
+    use super::*;
 
     fn fixture() -> (HederaDid, InternalSigner) {
         let signer = InternalSigner::from_bytes(&[3u8; 32]).expect("signer");

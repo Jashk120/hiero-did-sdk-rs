@@ -1,9 +1,13 @@
-use base64::{Engine, engine::general_purpose::STANDARD as B64};
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD as B64;
 use hiero_did_core::error::DIDError;
 use reqwest::blocking::Client;
 use serde::Deserialize;
 
-use crate::vault_config::{VaultAuth, VaultSignerConfig};
+use crate::vault_config::{
+    VaultAuth,
+    VaultSignerConfig,
+};
 
 pub struct VaultApi {
     client: Client,
@@ -77,10 +81,7 @@ impl VaultApi {
     }
 
     pub fn fetch_public_key(&self, key_name: &str) -> Result<Vec<u8>, DIDError> {
-        let url = format!(
-            "{}/v1/{}/keys/{}",
-            self.vault_url, self.mount_path, key_name
-        );
+        let url = format!("{}/v1/{}/keys/{}", self.vault_url, self.mount_path, key_name);
         let resp: KeyResp = self
             .client
             .get(&url)
@@ -94,10 +95,7 @@ impl VaultApi {
     }
 
     pub fn sign_ed25519(&self, key_name: &str, message: &[u8]) -> Result<Vec<u8>, DIDError> {
-        let url = format!(
-            "{}/v1/{}/sign/{}",
-            self.vault_url, self.mount_path, key_name
-        );
+        let url = format!("{}/v1/{}/sign/{}", self.vault_url, self.mount_path, key_name);
         let body = serde_json::json!({"input": B64.encode(message)});
 
         let resp: SignResp = self
@@ -118,8 +116,7 @@ fn public_key_from_key_response(resp: &KeyResp, key_name: &str) -> Result<Vec<u8
     let ver = latest_key_version(&resp.data.keys)
         .ok_or_else(|| DIDError::NotFound(format!("Vault key not found: {key_name}")))?;
 
-    B64.decode(&ver.public_key)
-        .map_err(|e| DIDError::InternalError(e.to_string()))
+    B64.decode(&ver.public_key).map_err(|e| DIDError::InternalError(e.to_string()))
 }
 
 fn decode_vault_signature(signature: &str) -> Result<Vec<u8>, DIDError> {
@@ -128,8 +125,7 @@ fn decode_vault_signature(signature: &str) -> Result<Vec<u8>, DIDError> {
         .and_then(|rest| rest.split_once(':').map(|(_, raw_b64)| raw_b64))
         .ok_or_else(|| DIDError::InternalError("unexpected vault signature format".into()))?;
 
-    B64.decode(raw_b64)
-        .map_err(|e| DIDError::InternalError(e.to_string()))
+    B64.decode(raw_b64).map_err(|e| DIDError::InternalError(e.to_string()))
 }
 
 fn latest_key_version(keys: &std::collections::HashMap<String, KeyVersion>) -> Option<&KeyVersion> {
@@ -141,30 +137,16 @@ fn latest_key_version(keys: &std::collections::HashMap<String, KeyVersion>) -> O
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::collections::HashMap;
+
+    use super::*;
 
     #[test]
     fn latest_key_version_picks_highest_numeric_version() {
         let mut keys = HashMap::new();
-        keys.insert(
-            "1".to_string(),
-            KeyVersion {
-                public_key: B64.encode([1u8; 32]),
-            },
-        );
-        keys.insert(
-            "3".to_string(),
-            KeyVersion {
-                public_key: B64.encode([3u8; 32]),
-            },
-        );
-        keys.insert(
-            "not-a-version".to_string(),
-            KeyVersion {
-                public_key: B64.encode([9u8; 32]),
-            },
-        );
+        keys.insert("1".to_string(), KeyVersion { public_key: B64.encode([1u8; 32]) });
+        keys.insert("3".to_string(), KeyVersion { public_key: B64.encode([3u8; 32]) });
+        keys.insert("not-a-version".to_string(), KeyVersion { public_key: B64.encode([9u8; 32]) });
 
         let latest = latest_key_version(&keys).expect("latest key");
         assert_eq!(latest.public_key, B64.encode([3u8; 32]));
@@ -183,10 +165,7 @@ mod tests {
         }))
         .expect("key response");
 
-        assert_eq!(
-            public_key_from_key_response(&resp, "did-key").expect("public key"),
-            public_key
-        );
+        assert_eq!(public_key_from_key_response(&resp, "did-key").expect("public key"), public_key);
     }
 
     #[test]
@@ -208,10 +187,7 @@ mod tests {
         let signature = [9u8; 64];
         let encoded = format!("vault:v1:{}", B64.encode(signature));
 
-        assert_eq!(
-            decode_vault_signature(&encoded).expect("signature"),
-            signature
-        );
+        assert_eq!(decode_vault_signature(&encoded).expect("signature"), signature);
     }
 
     #[test]
@@ -219,10 +195,7 @@ mod tests {
         let signature = [5u8; 64];
         let encoded = format!("vault:v42:{}", B64.encode(signature));
 
-        assert_eq!(
-            decode_vault_signature(&encoded).expect("signature"),
-            signature
-        );
+        assert_eq!(decode_vault_signature(&encoded).expect("signature"), signature);
     }
 
     #[test]

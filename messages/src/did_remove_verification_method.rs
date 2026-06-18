@@ -1,9 +1,17 @@
-use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64;
 use hiero_did_core::DIDError;
 use serde_json;
-use crate::envelope::{HcsEnvelope, HcsMessage};
-use crate::events::{DIDRemoveVerificationMethodEvent, DIDRemoveVerificationMethodEventData};
- 
+
+use crate::envelope::{
+    HcsEnvelope,
+    HcsMessage,
+};
+use crate::events::{
+    DIDRemoveVerificationMethodEvent,
+    DIDRemoveVerificationMethodEventData,
+};
+
 #[derive(Debug, Clone)]
 pub struct DIDRemoveVerificationMethodMessage {
     pub did: String,
@@ -11,18 +19,16 @@ pub struct DIDRemoveVerificationMethodMessage {
     pub id: String,
     pub timestamp: String,
 }
- 
+
 impl DIDRemoveVerificationMethodMessage {
     pub fn new(did: String, id: String) -> Self {
         let timestamp = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
         Self { did, id, timestamp }
     }
- 
+
     pub fn to_hcs_message(&self) -> Result<HcsMessage, DIDError> {
         let event = DIDRemoveVerificationMethodEvent {
-            verification_method: DIDRemoveVerificationMethodEventData {
-                id: self.id.clone(),
-            },
+            verification_method: DIDRemoveVerificationMethodEventData { id: self.id.clone() },
         };
         let event_json = serde_json::to_string(&event)
             .map_err(|e| DIDError::SerializationError(e.to_string()))?;
@@ -34,21 +40,16 @@ impl DIDRemoveVerificationMethodMessage {
             event: Some(event_b64),
         })
     }
- 
+
     pub fn to_payload(&self, signature: &[u8]) -> Result<String, DIDError> {
         let message = self.to_hcs_message()?;
-        let envelope = HcsEnvelope {
-            message,
-            signature: BASE64.encode(signature),
-        };
-        serde_json::to_string(&envelope)
-            .map_err(|e| DIDError::SerializationError(e.to_string()))
+        let envelope = HcsEnvelope { message, signature: BASE64.encode(signature) };
+        serde_json::to_string(&envelope).map_err(|e| DIDError::SerializationError(e.to_string()))
     }
- 
+
     pub fn message_bytes(&self) -> Result<Vec<u8>, DIDError> {
         let message = self.to_hcs_message()?;
-        serde_json::to_vec(&message)
-            .map_err(|e| DIDError::SerializationError(e.to_string()))
+        serde_json::to_vec(&message).map_err(|e| DIDError::SerializationError(e.to_string()))
     }
 }
 

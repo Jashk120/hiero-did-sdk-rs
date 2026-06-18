@@ -1,11 +1,16 @@
-use dotenvy::from_filename;
-use dotenvy::from_filename_override;
-use hiero_did_client::HederaClientConfiguration;
-use hiero_did_client::HederaClientService;
-use hiero_did_client::HederaNetwork;
-use hiero_did_client::NetworkConfig;
-use hiero_sdk::PrivateKey;
 use std::env;
+
+use dotenvy::{
+    from_filename,
+    from_filename_override,
+};
+use hiero_did_client::{
+    HederaClientConfiguration,
+    HederaClientService,
+    HederaNetwork,
+    NetworkConfig,
+};
+use hiero_sdk::PrivateKey;
 
 fn env_or_skip(name: &str) -> Option<String> {
     env::var(name).ok()
@@ -27,11 +32,7 @@ fn test_config_single() -> Option<HederaClientConfiguration> {
     };
 
     Some(HederaClientConfiguration {
-        networks: vec![NetworkConfig {
-            network: network_kind,
-            operator_id,
-            operator_key,
-        }],
+        networks: vec![NetworkConfig { network: network_kind, operator_id, operator_key }],
     })
 }
 

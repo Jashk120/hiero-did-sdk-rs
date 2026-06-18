@@ -1,28 +1,34 @@
-use crate::csm::CsmMessageState;
-use crate::csm::CsmOperationState;
-use crate::csm::CsmPrepareOptions;
-use crate::csm::CsmSigningRequest;
-use crate::csm::CsmSubmitRequest;
-use crate::csm::CsmSubmitResult;
-use crate::csm::build_state;
-use crate::csm::submit_csm_request;
-use hiero_did_core::DIDError;
-use hiero_did_core::HederaDid;
-use hiero_did_core::KeysUtility;
 use hiero_did_core::did::Network;
+use hiero_did_core::{
+    DIDError,
+    HederaDid,
+    KeysUtility,
+};
 use hiero_did_hcs::HcsTopic;
-use hiero_did_lifecycle::LifecycleBuilder;
-use hiero_did_lifecycle::LifecycleRunner;
-use hiero_did_lifecycle::LifecycleRunnerOptions;
-use hiero_did_lifecycle::RunnerStatus;
+use hiero_did_lifecycle::{
+    LifecycleBuilder,
+    LifecycleRunner,
+    LifecycleRunnerOptions,
+    RunnerStatus,
+};
 use hiero_did_messages::DIDOwnerMessage;
 use hiero_sdk::Client;
+
+use crate::csm::{
+    CsmMessageState,
+    CsmOperationState,
+    CsmPrepareOptions,
+    CsmSigningRequest,
+    CsmSubmitRequest,
+    CsmSubmitResult,
+    build_state,
+    submit_csm_request,
+};
 
 const STEP_SIGN: &str = "pause-for-signature";
 
 fn create_lifecycle() -> Result<LifecycleRunner<DIDOwnerMessage, CsmOperationState>, DIDError> {
-    let builder = LifecycleBuilder::new()
-        .pause(STEP_SIGN)?;
+    let builder = LifecycleBuilder::new().pause(STEP_SIGN)?;
     Ok(LifecycleRunner::new(builder))
 }
 
@@ -71,14 +77,10 @@ pub async fn prepare_create_did_csm_with_options(
     )?;
 
     let runner = create_lifecycle()?;
-    let runner_state = runner
-        .process(message, LifecycleRunnerOptions::new(csm_state))
-        .await?;
+    let runner_state = runner.process(message, LifecycleRunnerOptions::new(csm_state)).await?;
 
     if runner_state.status != RunnerStatus::Pause {
-        return Err(DIDError::InternalError(
-            "Expected lifecycle to pause for signature".into(),
-        ));
+        return Err(DIDError::InternalError("Expected lifecycle to pause for signature".into()));
     }
 
     runner_state.context.signing_request()

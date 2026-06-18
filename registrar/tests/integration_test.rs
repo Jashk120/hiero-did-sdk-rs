@@ -1,24 +1,32 @@
-use dotenvy::from_filename;
-use dotenvy::from_filename_override;
-use hiero_did_client::HederaClientConfiguration;
-use hiero_did_client::HederaClientService;
-use hiero_did_client::HederaNetwork;
-use hiero_did_client::NetworkConfig;
+use std::env;
+
+use dotenvy::{
+    from_filename,
+    from_filename_override,
+};
+use hiero_did_client::{
+    HederaClientConfiguration,
+    HederaClientService,
+    HederaNetwork,
+    NetworkConfig,
+};
 use hiero_did_core::did::Network;
 use hiero_did_registrar::create::create_did;
 use hiero_did_registrar::deactivate::deactivate_did;
-use hiero_did_registrar::update::AddService;
-use hiero_did_registrar::update::AddVerificationMethod;
-use hiero_did_registrar::update::DIDUpdateOperation;
-use hiero_did_registrar::update::RemoveService;
-use hiero_did_registrar::update::RemoveVerificationMethod;
-use hiero_did_registrar::update::VerificationMethodProperty;
-use hiero_did_registrar::update::update_did;
-use hiero_did_resolver::DidDocumentBuilder;
-use hiero_did_resolver::MirrorNodeClient;
+use hiero_did_registrar::update::{
+    AddService,
+    AddVerificationMethod,
+    DIDUpdateOperation,
+    RemoveService,
+    RemoveVerificationMethod,
+    VerificationMethodProperty,
+    update_did,
+};
+use hiero_did_resolver::{
+    DidDocumentBuilder,
+    MirrorNodeClient,
+};
 use hiero_sdk::Client;
-use std::env;
-
 #[cfg(feature = "debug-mirror")]
 use serde_json::Value;
 
@@ -28,10 +36,7 @@ fn setup_env() {
 }
 
 fn get_network() -> Network {
-    match env::var("HEDERA_NETWORK")
-        .unwrap_or_else(|_| "testnet".to_string())
-        .as_str()
-    {
+    match env::var("HEDERA_NETWORK").unwrap_or_else(|_| "testnet".to_string()).as_str() {
         "mainnet" => Network::Mainnet,
         "local" | "local-node" | "localhost" => Network::Testnet, // local uses testnet DID namespace
         _ => Network::Testnet,
@@ -39,10 +44,7 @@ fn get_network() -> Network {
 }
 
 fn get_client_network() -> HederaNetwork {
-    match env::var("HEDERA_NETWORK")
-        .unwrap_or_else(|_| "testnet".to_string())
-        .as_str()
-    {
+    match env::var("HEDERA_NETWORK").unwrap_or_else(|_| "testnet".to_string()).as_str() {
         "mainnet" => HederaNetwork::Mainnet,
         "previewnet" => HederaNetwork::Previewnet,
         "local" | "local-node" | "localhost" => HederaNetwork::LocalNode,
@@ -56,17 +58,11 @@ fn setup_client() -> Client {
     let operator_id = env::var("HEDERA_ACCOUNT_ID").expect("HEDERA_ACCOUNT_ID not set");
     let operator_key = env::var("HEDERA_PRIVATE_KEY").expect("HEDERA_PRIVATE_KEY not set");
     let service = HederaClientService::new(HederaClientConfiguration {
-        networks: vec![NetworkConfig {
-            network: get_client_network(),
-            operator_id,
-            operator_key,
-        }],
+        networks: vec![NetworkConfig { network: get_client_network(), operator_id, operator_key }],
     })
     .expect("Failed to initialize HederaClientService");
 
-    service
-        .get_client(None)
-        .expect("Failed to build Hedera client")
+    service.get_client(None).expect("Failed to build Hedera client")
 }
 
 fn setup_mirror() -> MirrorNodeClient {
@@ -79,9 +75,7 @@ async fn test_create_did() {
     let client = setup_client();
     let network = get_network();
 
-    let result = create_did(&client, network, None)
-        .await
-        .expect("Failed to create DID");
+    let result = create_did(&client, network, None).await.expect("Failed to create DID");
 
     println!("Created DID: {}", result.did);
     println!("Topic ID: {}", result.did.topic_id);
@@ -97,9 +91,7 @@ async fn test_create_and_resolve_did() {
     let mirror = setup_mirror();
     let network = get_network();
 
-    let result = create_did(&client, network, None)
-        .await
-        .expect("Failed to create DID");
+    let result = create_did(&client, network, None).await.expect("Failed to create DID");
 
     println!("Created DID: {}", result.did);
 
@@ -129,18 +121,14 @@ async fn test_update_did_add_and_remove_operations() {
     let mirror = setup_mirror();
     let network = get_network();
 
-    let created = create_did(&client, network, None)
-        .await
-        .expect("Failed to create DID");
+    let created = create_did(&client, network, None).await.expect("Failed to create DID");
     let did = created.did.clone();
     let did_str = did.to_string();
 
     let vm_id = format!("{}#key-1", did_str);
     let service_id = format!("{}#svc-1", did_str);
     let service_endpoint = "https://example.com/agent".to_string();
-    let vm_key = hiero_sdk::PrivateKey::generate_ed25519()
-        .public_key()
-        .to_bytes_raw();
+    let vm_key = hiero_sdk::PrivateKey::generate_ed25519().public_key().to_bytes_raw();
     let vm_public_key_multibase = hiero_did_core::KeysUtility::from_bytes(vm_key).to_multibase();
 
     let add_ops = vec![
@@ -172,11 +160,7 @@ async fn test_update_did_add_and_remove_operations() {
         .expect("Failed to resolve DID after add operations");
 
     assert!(
-        resolution_after_add
-            .did_document
-            .verification_method
-            .iter()
-            .any(|vm| vm.id() == vm_id),
+        resolution_after_add.did_document.verification_method.iter().any(|vm| vm.id() == vm_id),
         "Added verification method should be present",
     );
     assert!(
@@ -193,9 +177,7 @@ async fn test_update_did_add_and_remove_operations() {
         DIDUpdateOperation::RemoveVerificationMethod(RemoveVerificationMethod {
             id: vm_id.clone(),
         }),
-        DIDUpdateOperation::RemoveService(RemoveService {
-            id: service_id.clone(),
-        }),
+        DIDUpdateOperation::RemoveService(RemoveService { id: service_id.clone() }),
     ];
 
     let remove_result = update_did(&client, did.clone(), &created.private_key_bytes, remove_ops)
@@ -213,11 +195,7 @@ async fn test_update_did_add_and_remove_operations() {
         .expect("Failed to resolve DID after remove operations");
 
     assert!(
-        !resolution_after_remove
-            .did_document
-            .verification_method
-            .iter()
-            .any(|vm| vm.id() == vm_id),
+        !resolution_after_remove.did_document.verification_method.iter().any(|vm| vm.id() == vm_id),
         "Removed verification method should not be present",
     );
     assert!(
@@ -237,9 +215,7 @@ async fn test_deactivate_did() {
     let mirror = setup_mirror();
     let network = get_network();
 
-    let created = create_did(&client, network, None)
-        .await
-        .expect("Failed to create DID");
+    let created = create_did(&client, network, None).await.expect("Failed to create DID");
     let did = created.did.clone();
 
     let deactivated = deactivate_did(&client, did.clone(), &created.private_key_bytes)

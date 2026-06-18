@@ -1,9 +1,17 @@
-use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64;
 use hiero_did_core::DIDError;
 use serde_json;
-use crate::envelope::{HcsEnvelope, HcsMessage};
-use crate::events::{DIDAddVerificationMethodEvent, DIDAddVerificationMethodEventData};
- 
+
+use crate::envelope::{
+    HcsEnvelope,
+    HcsMessage,
+};
+use crate::events::{
+    DIDAddVerificationMethodEvent,
+    DIDAddVerificationMethodEventData,
+};
+
 #[derive(Debug, Clone)]
 pub struct DIDAddVerificationMethodMessage {
     pub did: String,
@@ -15,7 +23,7 @@ pub struct DIDAddVerificationMethodMessage {
     pub public_key_multibase: String,
     pub timestamp: String,
 }
- 
+
 impl DIDAddVerificationMethodMessage {
     pub fn new(
         did: String,
@@ -27,7 +35,7 @@ impl DIDAddVerificationMethodMessage {
         let timestamp = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
         Self { did, id, property, controller, public_key_multibase, timestamp }
     }
- 
+
     pub fn to_hcs_message(&self) -> Result<HcsMessage, DIDError> {
         let event = DIDAddVerificationMethodEvent {
             verification_method: DIDAddVerificationMethodEventData {
@@ -48,21 +56,16 @@ impl DIDAddVerificationMethodMessage {
             event: Some(event_b64),
         })
     }
- 
+
     pub fn to_payload(&self, signature: &[u8]) -> Result<String, DIDError> {
         let message = self.to_hcs_message()?;
-        let envelope = HcsEnvelope {
-            message,
-            signature: BASE64.encode(signature),
-        };
-        serde_json::to_string(&envelope)
-            .map_err(|e| DIDError::SerializationError(e.to_string()))
+        let envelope = HcsEnvelope { message, signature: BASE64.encode(signature) };
+        serde_json::to_string(&envelope).map_err(|e| DIDError::SerializationError(e.to_string()))
     }
- 
+
     pub fn message_bytes(&self) -> Result<Vec<u8>, DIDError> {
         let message = self.to_hcs_message()?;
-        serde_json::to_vec(&message)
-            .map_err(|e| DIDError::SerializationError(e.to_string()))
+        serde_json::to_vec(&message).map_err(|e| DIDError::SerializationError(e.to_string()))
     }
 }
 

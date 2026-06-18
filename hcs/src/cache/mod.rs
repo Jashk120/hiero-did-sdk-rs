@@ -3,7 +3,10 @@ use std::time::Duration;
 
 use moka::future::Cache;
 
-use crate::hcs::{TopicInfo, TopicMessageData};
+use crate::hcs::{
+    TopicInfo,
+    TopicMessageData,
+};
 
 const DEFAULT_CACHE_MAX_SIZE: u64 = 1000;
 const CACHE_TTL_SECS: u64 = 300;
@@ -41,9 +44,7 @@ impl HcsCacheService {
     }
 
     pub async fn remove_topic_info(&self, network_name: &str, topic_id: &str) {
-        self.inner
-            .remove(&self.build_key(network_name, "info", topic_id))
-            .await;
+        self.inner.remove(&self.build_key(network_name, "info", topic_id)).await;
         self.remove_topic_messages(network_name, topic_id).await;
     }
 
@@ -71,9 +72,7 @@ impl HcsCacheService {
     }
 
     pub async fn remove_topic_messages(&self, network_name: &str, topic_id: &str) {
-        self.inner
-            .remove(&self.build_key(network_name, "messages", topic_id))
-            .await;
+        self.inner.remove(&self.build_key(network_name, "messages", topic_id)).await;
         self.remove_topic_file(network_name, topic_id).await;
     }
 
@@ -89,9 +88,7 @@ impl HcsCacheService {
     }
 
     pub async fn remove_topic_file(&self, network_name: &str, topic_id: &str) {
-        self.inner
-            .remove(&self.build_key(network_name, "file", topic_id))
-            .await;
+        self.inner.remove(&self.build_key(network_name, "file", topic_id)).await;
     }
 
     fn build_key(&self, network_name: &str, target: &str, topic_id: &str) -> String {
@@ -101,8 +98,9 @@ impl HcsCacheService {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use time::OffsetDateTime;
+
+    use super::*;
 
     fn sample_info(topic_id: &str) -> TopicInfo {
         TopicInfo {
@@ -150,34 +148,21 @@ mod tests {
         let info = sample_info("0.0.1002");
         let messages = sample_messages();
         cache.set_topic_info("testnet", "0.0.1002", &info).await;
-        cache
-            .set_topic_messages("testnet", "0.0.1002", &messages)
-            .await;
-        cache
-            .set_topic_file("testnet", "0.0.1002", b"payload")
-            .await;
+        cache.set_topic_messages("testnet", "0.0.1002", &messages).await;
+        cache.set_topic_file("testnet", "0.0.1002", b"payload").await;
 
         cache.remove_topic_info("testnet", "0.0.1002").await;
 
         assert!(cache.get_topic_info("testnet", "0.0.1002").await.is_none());
-        assert!(
-            cache
-                .get_topic_messages("testnet", "0.0.1002")
-                .await
-                .is_none()
-        );
+        assert!(cache.get_topic_messages("testnet", "0.0.1002").await.is_none());
         assert!(cache.get_topic_file("testnet", "0.0.1002").await.is_none());
     }
 
     #[tokio::test]
     async fn set_topic_messages_invalidates_file_cache() {
         let cache = HcsCacheService::with_defaults();
-        cache
-            .set_topic_file("testnet", "0.0.1003", b"old-file")
-            .await;
-        cache
-            .set_topic_messages("testnet", "0.0.1003", &sample_messages())
-            .await;
+        cache.set_topic_file("testnet", "0.0.1003", b"old-file").await;
+        cache.set_topic_messages("testnet", "0.0.1003", &sample_messages()).await;
 
         assert!(cache.get_topic_file("testnet", "0.0.1003").await.is_none());
     }

@@ -24,7 +24,10 @@ impl VaultSignerConfig {
 
 #[cfg(test)]
 mod tests {
-    use super::{VaultAuth, VaultSignerConfig};
+    use super::{
+        VaultAuth,
+        VaultSignerConfig,
+    };
 
     #[test]
     fn new_uses_transit_mount_by_default() {

@@ -1,4 +1,7 @@
-use serde::{Deserialize, Serialize};
+use serde::{
+    Deserialize,
+    Serialize,
+};
 
 /// Media types a caller can request when resolving or dereferencing a DID.
 /// Mirrors the `Accept` union in the JS SDK (`packages/resolver/src/interfaces/accept.ts`).
@@ -34,9 +37,7 @@ impl std::str::FromStr for Accept {
                 Ok(Accept::DidResolution)
             }
             "application/did+cbor" => Ok(Accept::DidCbor),
-            other => Err(crate::error::DIDError::RepresentationNotSupported(
-                other.to_string(),
-            )),
+            other => Err(crate::error::DIDError::RepresentationNotSupported(other.to_string())),
         }
     }
 }

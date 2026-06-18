@@ -1,5 +1,12 @@
-use hiero_did_core::{DIDError, Signer};
-use hiero_sdk::{AccountId, Client, PrivateKey};
+use hiero_did_core::{
+    DIDError,
+    Signer,
+};
+use hiero_sdk::{
+    AccountId,
+    Client,
+    PrivateKey,
+};
 
 // ── LocalSigner ───────────────────────────────────────────────────────────────
 
@@ -35,15 +42,11 @@ pub struct HcsClient {
 
 impl HcsClient {
     pub fn for_testnet() -> Self {
-        Self {
-            inner: Client::for_testnet(),
-        }
+        Self { inner: Client::for_testnet() }
     }
 
     pub fn for_mainnet() -> Self {
-        Self {
-            inner: Client::for_mainnet(),
-        }
+        Self { inner: Client::for_mainnet() }
     }
 
     pub fn set_operator(&self, account_id: AccountId, private_key: PrivateKey) {

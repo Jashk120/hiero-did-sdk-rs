@@ -1,5 +1,9 @@
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+use serde::{
+    Deserialize,
+    Serialize,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnonCredsSchema {
@@ -93,8 +97,9 @@ pub struct AnonCredsRevocationStatusList {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::collections::HashMap;
+
+    use super::*;
 
     #[test]
     fn schema_serde_field_names_match_anoncreds_shape() {
@@ -119,10 +124,7 @@ mod tests {
             schema_id: "did:hedera:testnet:abc_0.0.1/anoncreds/v1/SCHEMA/0.0.123".to_string(),
             cred_type: "CL".to_string(),
             tag: "tag-1".to_string(),
-            value: CredentialDefinitionValue {
-                primary: HashMap::new(),
-                revocation: None,
-            },
+            value: CredentialDefinitionValue { primary: HashMap::new(), revocation: None },
         };
 
         let encoded = serde_json::to_vec(&cred_def).expect("encode");

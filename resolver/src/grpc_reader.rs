@@ -1,8 +1,14 @@
-use crate::topic_reader::TopicReader;
+use std::str::FromStr;
+
 use async_trait::async_trait;
 use hiero_did_core::DIDError;
-use hiero_did_hcs::{GetTopicMessagesProps, HcsClient, HcsMessage};
-use std::str::FromStr;
+use hiero_did_hcs::{
+    GetTopicMessagesProps,
+    HcsClient,
+    HcsMessage,
+};
+
+use crate::topic_reader::TopicReader;
 
 /// Topic reader backed by the gRPC mirror-node subscription stream
 /// (hiero_sdk::TopicMessageQuery, via hiero-did-hcs::HcsMessage).
@@ -17,15 +23,11 @@ pub struct GrpcTopicReader {
 
 impl GrpcTopicReader {
     pub fn for_testnet() -> Self {
-        Self {
-            client: HcsClient::for_testnet(),
-        }
+        Self { client: HcsClient::for_testnet() }
     }
 
     pub fn for_mainnet() -> Self {
-        Self {
-            client: HcsClient::for_mainnet(),
-        }
+        Self { client: HcsClient::for_mainnet() }
     }
 }
 
@@ -48,8 +50,9 @@ impl TopicReader for GrpcTopicReader {
         messages
             .into_iter()
             .map(|m| {
-                String::from_utf8(m.contents)
-                    .map_err(|e| DIDError::InternalError(format!("Message is not valid UTF-8: {e}")))
+                String::from_utf8(m.contents).map_err(|e| {
+                    DIDError::InternalError(format!("Message is not valid UTF-8: {e}"))
+                })
             })
             .collect()
     }

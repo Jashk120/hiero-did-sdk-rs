@@ -2,13 +2,24 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use futures_util::StreamExt;
-use hiero_did_core::{DIDError, Signer};
-use hiero_sdk::{Client, TopicId, TopicMessageQuery, TopicMessageSubmitTransaction};
+use hiero_did_core::{
+    DIDError,
+    Signer,
+};
+use hiero_sdk::{
+    Client,
+    TopicId,
+    TopicMessageQuery,
+    TopicMessageSubmitTransaction,
+};
 use time::OffsetDateTime;
 
 use crate::cache::HcsCacheService;
 use crate::hcs::signing::{
-    public_key_from_signer, sign_with_error_capture, signing_error_slot, take_signing_error,
+    public_key_from_signer,
+    sign_with_error_capture,
+    signing_error_slot,
+    take_signing_error,
 };
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -58,9 +69,7 @@ impl HcsMessage {
             Ok(response) => response,
             Err(e) => {
                 take_signing_error(&signing_errors)?;
-                return Err(DIDError::InternalError(format!(
-                    "submit_execute_failed: {e}"
-                )));
+                return Err(DIDError::InternalError(format!("submit_execute_failed: {e}")));
             }
         };
         take_signing_error(&signing_errors)?;
@@ -169,9 +178,7 @@ impl HcsMessage {
 
         if let Some(cache) = cache {
             if props.from_time.is_none() && props.to_time.is_none() && props.limit.is_none() {
-                cache
-                    .set_topic_messages(network_name, &topic_id_str, &results)
-                    .await;
+                cache.set_topic_messages(network_name, &topic_id_str, &results).await;
             }
         }
 

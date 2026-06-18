@@ -1,35 +1,42 @@
 use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
-use std::time::SystemTime;
-use std::time::UNIX_EPOCH;
+use std::time::{
+    SystemTime,
+    UNIX_EPOCH,
+};
 
-use dotenvy::from_filename;
-use dotenvy::from_filename_override;
-use hiero_did_anoncreds::AccumKey;
-use hiero_did_anoncreds::AnonCredsCredentialDefinition;
-use hiero_did_anoncreds::AnonCredsRevocationRegistryDefinition;
-use hiero_did_anoncreds::AnonCredsRevocationStatusList;
-use hiero_did_anoncreds::AnonCredsSchema;
-use hiero_did_anoncreds::CredentialDefinitionValue;
-use hiero_did_anoncreds::HederaAnonCredsRegistry;
-use hiero_did_anoncreds::RevocationRegistryDefinitionValue;
-use hiero_did_anoncreds::RevocationRegistryPublicKeys;
-use hiero_did_client::HederaClientConfiguration;
-use hiero_did_client::HederaClientService;
-use hiero_did_client::HederaNetwork;
-use hiero_did_client::NetworkConfig;
+use dotenvy::{
+    from_filename,
+    from_filename_override,
+};
+use hiero_did_anoncreds::{
+    AccumKey,
+    AnonCredsCredentialDefinition,
+    AnonCredsRevocationRegistryDefinition,
+    AnonCredsRevocationStatusList,
+    AnonCredsSchema,
+    CredentialDefinitionValue,
+    HederaAnonCredsRegistry,
+    RevocationRegistryDefinitionValue,
+    RevocationRegistryPublicKeys,
+};
+use hiero_did_client::{
+    HederaClientConfiguration,
+    HederaClientService,
+    HederaNetwork,
+    NetworkConfig,
+};
 use hiero_did_core::Signer;
-use hiero_did_hcs::HederaHcsService;
-use hiero_did_hcs::LocalSigner;
+use hiero_did_hcs::{
+    HederaHcsService,
+    LocalSigner,
+};
 use hiero_did_utils::tests::poll_until;
 use hiero_sdk::PrivateKey;
 
 fn unique_tag(prefix: &str) -> String {
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("clock")
-        .as_nanos();
+    let nanos = SystemTime::now().duration_since(UNIX_EPOCH).expect("clock").as_nanos();
     format!("{prefix}-{nanos}")
 }
 
@@ -84,12 +91,7 @@ fn setup_ctx() -> Result<Ctx, String> {
     let issuer_did = format!("did:hedera:{did_network_name}:testkey_{}", operator_id);
     println!("ACCOUNT={}", operator_id);
 
-    Ok(Ctx {
-        network_name,
-        signer,
-        registry,
-        issuer_did,
-    })
+    Ok(Ctx { network_name, signer, registry, issuer_did })
 }
 
 #[tokio::test]
@@ -105,23 +107,13 @@ async fn register_and_get_schema_roundtrip() {
 
     let schema_id = ctx
         .registry
-        .register_schema(
-            Some(ctx.network_name.as_str()),
-            schema.clone(),
-            Arc::clone(&ctx.signer),
-        )
+        .register_schema(Some(ctx.network_name.as_str()), schema.clone(), Arc::clone(&ctx.signer))
         .await
         .expect("register schema");
 
-    let resolved = poll_until(
-        || async {
-            ctx.registry.get_schema(&schema_id).await.ok()
-        },
-        30,
-        500,
-    )
-    .await
-    .expect("schema never appeared within 30s");
+    let resolved = poll_until(|| async { ctx.registry.get_schema(&schema_id).await.ok() }, 30, 500)
+        .await
+        .expect("schema never appeared within 30s");
 
     assert_eq!(resolved.issuer_id, schema.issuer_id);
     assert_eq!(resolved.name, schema.name);
@@ -140,11 +132,7 @@ async fn register_and_get_credential_definition_roundtrip() {
     };
     let schema_id = ctx
         .registry
-        .register_schema(
-            Some(ctx.network_name.as_str()),
-            schema,
-            Arc::clone(&ctx.signer),
-        )
+        .register_schema(Some(ctx.network_name.as_str()), schema, Arc::clone(&ctx.signer))
         .await
         .expect("register schema");
 
@@ -153,10 +141,7 @@ async fn register_and_get_credential_definition_roundtrip() {
         schema_id,
         cred_type: "CL".to_string(),
         tag: unique_tag("creddef"),
-        value: CredentialDefinitionValue {
-            primary: HashMap::new(),
-            revocation: None,
-        },
+        value: CredentialDefinitionValue { primary: HashMap::new(), revocation: None },
     };
 
     let cred_def_id = ctx
@@ -170,9 +155,7 @@ async fn register_and_get_credential_definition_roundtrip() {
         .expect("register cred def");
 
     let resolved = poll_until(
-        || async {
-            ctx.registry.get_credential_definition(&cred_def_id).await.ok()
-        },
+        || async { ctx.registry.get_credential_definition(&cred_def_id).await.ok() },
         30,
         500,
     )
@@ -196,11 +179,7 @@ async fn register_revocation_registry_and_status_list_roundtrip() {
     };
     let schema_id = ctx
         .registry
-        .register_schema(
-            Some(ctx.network_name.as_str()),
-            schema,
-            Arc::clone(&ctx.signer),
-        )
+        .register_schema(Some(ctx.network_name.as_str()), schema, Arc::clone(&ctx.signer))
         .await
         .expect("register schema");
 
@@ -209,10 +188,7 @@ async fn register_revocation_registry_and_status_list_roundtrip() {
         schema_id,
         cred_type: "CL".to_string(),
         tag: unique_tag("creddef-for-revreg"),
-        value: CredentialDefinitionValue {
-            primary: HashMap::new(),
-            revocation: None,
-        },
+        value: CredentialDefinitionValue { primary: HashMap::new(), revocation: None },
     };
     let cred_def_id = ctx
         .registry
@@ -250,12 +226,7 @@ async fn register_revocation_registry_and_status_list_roundtrip() {
         .expect("register rev reg def");
 
     let rev_with_meta = poll_until(
-        || async {
-            ctx.registry
-                .get_revocation_registry_definition(&rev_reg_def_id)
-                .await
-                .ok()
-        },
+        || async { ctx.registry.get_revocation_registry_definition(&rev_reg_def_id).await.ok() },
         30,
         500,
     )
@@ -265,10 +236,7 @@ async fn register_revocation_registry_and_status_list_roundtrip() {
     assert_eq!(rev_with_meta.rev_reg_def.issuer_id, rev_reg_def.issuer_id);
     assert!(!rev_with_meta.hcs_metadata.entries_topic_id.is_empty());
 
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("clock")
-        .as_secs();
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).expect("clock").as_secs();
 
     let status_list = AnonCredsRevocationStatusList {
         issuer_id: ctx.issuer_did.clone(),

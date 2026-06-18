@@ -1,26 +1,37 @@
-use crate::csm::CsmBatchSigningRequest;
-use crate::csm::CsmBatchSubmitRequest;
-use crate::csm::CsmBatchSubmitResult;
-use crate::csm::CsmMessageState;
-use crate::csm::CsmPrepareOptions;
-use crate::csm::CsmSigningRequest;
-use crate::csm::PAUSE_FOR_SIGNATURE_LABEL;
-use crate::csm::build_state;
-use crate::csm::public_key_from_did;
-use crate::csm::submit_csm_batch;
-use crate::update::{DIDUpdateOperation, DIDUpdateMessageExt};
-use hiero_did_core::DIDError;
-use hiero_did_core::HederaDid;
-use hiero_did_lifecycle::LifecycleBuilder;
-use hiero_did_lifecycle::LifecycleRunner;
-use hiero_did_lifecycle::LifecycleRunnerOptions;
-use hiero_did_lifecycle::RunnerStatus;
+use hiero_did_core::{
+    DIDError,
+    HederaDid,
+};
+use hiero_did_lifecycle::{
+    LifecycleBuilder,
+    LifecycleRunner,
+    LifecycleRunnerOptions,
+    RunnerStatus,
+};
 use hiero_did_messages::DIDUpdateMessage;
 use hiero_sdk::Client;
 
+use crate::csm::{
+    CsmBatchSigningRequest,
+    CsmBatchSubmitRequest,
+    CsmBatchSubmitResult,
+    CsmMessageState,
+    CsmPrepareOptions,
+    CsmSigningRequest,
+    PAUSE_FOR_SIGNATURE_LABEL,
+    build_state,
+    public_key_from_did,
+    submit_csm_batch,
+};
+use crate::update::{
+    DIDUpdateMessageExt,
+    DIDUpdateOperation,
+};
+
 const STEP_SIGN: &str = "pause-for-signature";
 
-fn update_lifecycle() -> Result<LifecycleRunner<DIDUpdateMessage, crate::csm::CsmOperationState>, DIDError> {
+fn update_lifecycle()
+-> Result<LifecycleRunner<DIDUpdateMessage, crate::csm::CsmOperationState>, DIDError> {
     let builder = LifecycleBuilder::new().pause(STEP_SIGN)?;
     Ok(LifecycleRunner::new(builder))
 }
@@ -112,11 +123,13 @@ async fn prepare_update_operation_csm(
                 public_key_multibase: m.public_key_multibase.clone(),
                 timestamp: m.timestamp.clone(),
             },
-            DIDUpdateMessage::RemoveVerificationMethod(m) => CsmMessageState::RemoveVerificationMethod {
-                did: m.did.clone(),
-                id: m.id.clone(),
-                timestamp: m.timestamp.clone(),
-            },
+            DIDUpdateMessage::RemoveVerificationMethod(m) => {
+                CsmMessageState::RemoveVerificationMethod {
+                    did: m.did.clone(),
+                    id: m.id.clone(),
+                    timestamp: m.timestamp.clone(),
+                }
+            }
             DIDUpdateMessage::AddService(m) => CsmMessageState::AddService {
                 did: m.did.clone(),
                 id: m.id.clone(),
@@ -143,14 +156,10 @@ async fn prepare_update_operation_csm(
     )?;
 
     let runner = update_lifecycle()?;
-    let runner_state = runner
-        .process(message, LifecycleRunnerOptions::new(csm_state))
-        .await?;
+    let runner_state = runner.process(message, LifecycleRunnerOptions::new(csm_state)).await?;
 
     if runner_state.status != RunnerStatus::Pause {
-        return Err(DIDError::InternalError(
-            "Expected lifecycle to pause for signature".into(),
-        ));
+        return Err(DIDError::InternalError("Expected lifecycle to pause for signature".into()));
     }
 
     runner_state.context.signing_request()

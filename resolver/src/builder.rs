@@ -1,22 +1,36 @@
-use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
-use hiero_did_core::{
-    DIDError, DIDDocument, DIDDocumentMetadata, DIDResolution, DIDResolutionMetadata,
-    KeyCapabilityMethod, KeysUtility, Service, VerificationMethod, VerificationMethodMultibase,
-    did::{DID_ROOT_KEY_ID, HederaDid},
+use std::collections::HashMap;
+
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64;
+use hiero_did_core::did::{
+    DID_ROOT_KEY_ID,
+    HederaDid,
 };
-use crate::topic_reader::TopicReader;
+use hiero_did_core::{
+    DIDDocument,
+    DIDDocumentMetadata,
+    DIDError,
+    DIDResolution,
+    DIDResolutionMetadata,
+    KeyCapabilityMethod,
+    KeysUtility,
+    Service,
+    VerificationMethod,
+    VerificationMethodMultibase,
+};
 use hiero_did_messages::envelope::HcsEnvelope;
 use hiero_did_messages::events::{
+    DIDAddServiceEvent,
+    DIDAddVerificationMethodEvent,
     DIDEvent,
     DIDOwnerEvent,
-    DIDAddVerificationMethodEvent,
-    DIDRemoveVerificationMethodEvent,
-    DIDAddServiceEvent,
     DIDRemoveServiceEvent,
+    DIDRemoveVerificationMethodEvent,
 };
 use hiero_did_signer::InternalVerifier;
-use std::collections::HashMap;
 use serde_json;
+
+use crate::topic_reader::TopicReader;
 
 pub struct DidDocumentBuilder {
     messages: Vec<String>,
@@ -72,7 +86,8 @@ impl DidDocumentBuilder {
                 if let Some(ref v) = verifier {
                     let msg_bytes = serde_json::to_vec(message)
                         .map_err(|e| DIDError::SerializationError(e.to_string()))?;
-                    let sig_bytes = BASE64.decode(&envelope.signature)
+                    let sig_bytes = BASE64
+                        .decode(&envelope.signature)
                         .map_err(|_| DIDError::InvalidSignature("Bad base64 signature".into()))?;
                     if v.verify(&msg_bytes, &sig_bytes)? {
                         deactivated = true;
@@ -85,7 +100,7 @@ impl DidDocumentBuilder {
             // decode event
             let event_b64 = match &message.event {
                 Some(e) => e,
-                None => continue,  // no event to process (shouldn't happen for non-delete)
+                None => continue, // no event to process (shouldn't happen for non-delete)
             };
             let event_json = match BASE64.decode(event_b64) {
                 Ok(b) => b,
@@ -102,9 +117,10 @@ impl DidDocumentBuilder {
 
             // for DIDOwner: extract public key to build verifier before sig check
             if let DIDEvent::Owner(ref owner_event) = event {
-                let key_bytes = KeysUtility::from_multibase(
-                    &owner_event.did_owner.public_key_multibase
-                )?.to_bytes().to_vec();
+                let key_bytes =
+                    KeysUtility::from_multibase(&owner_event.did_owner.public_key_multibase)?
+                        .to_bytes()
+                        .to_vec();
                 verifier = Some(InternalVerifier::from_bytes(&key_bytes)?);
             }
 
@@ -181,16 +197,12 @@ impl DidDocumentBuilder {
         // inject root key into authentication + assertionMethod if not already present
         let root_key_id = did.root_key_id();
         if !authentication.contains_key(&root_key_id) {
-            authentication.insert(
-                root_key_id.clone(),
-                KeyCapabilityMethod::Reference(root_key_id.clone()),
-            );
+            authentication
+                .insert(root_key_id.clone(), KeyCapabilityMethod::Reference(root_key_id.clone()));
         }
         if !assertion_method.contains_key(&root_key_id) {
-            assertion_method.insert(
-                root_key_id.clone(),
-                KeyCapabilityMethod::Reference(root_key_id.clone()),
-            );
+            assertion_method
+                .insert(root_key_id.clone(), KeyCapabilityMethod::Reference(root_key_id.clone()));
         }
 
         let did_document = DIDDocument {
@@ -198,12 +210,28 @@ impl DidDocumentBuilder {
             id: did_string.clone(),
             controller: controller.unwrap_or_else(|| did_string.clone()),
             verification_method: verification_methods.into_values().collect(),
-            service: if services.is_empty() { None } else { Some(services.into_values().collect()) },
+            service: if services.is_empty() {
+                None
+            } else {
+                Some(services.into_values().collect())
+            },
             authentication: Some(authentication.into_values().collect()),
             assertion_method: Some(assertion_method.into_values().collect()),
-            key_agreement: if key_agreement.is_empty() { None } else { Some(key_agreement.into_values().collect()) },
-            capability_invocation: if capability_invocation.is_empty() { None } else { Some(capability_invocation.into_values().collect()) },
-            capability_delegation: if capability_delegation.is_empty() { None } else { Some(capability_delegation.into_values().collect()) },
+            key_agreement: if key_agreement.is_empty() {
+                None
+            } else {
+                Some(key_agreement.into_values().collect())
+            },
+            capability_invocation: if capability_invocation.is_empty() {
+                None
+            } else {
+                Some(capability_invocation.into_values().collect())
+            },
+            capability_delegation: if capability_delegation.is_empty() {
+                None
+            } else {
+                Some(capability_delegation.into_values().collect())
+            },
         };
 
         Ok(DIDResolution {
@@ -267,11 +295,21 @@ fn apply_add_verification_method(
     // insert reference into the correct relationship bucket
     let reference = KeyCapabilityMethod::Reference(data.id.clone());
     match data.relationship_type.as_str() {
-        "authentication"        => { authentication.insert(data.id.clone(), reference); }
-        "assertionMethod"       => { assertion_method.insert(data.id.clone(), reference); }
-        "keyAgreement"          => { key_agreement.insert(data.id.clone(), reference); }
-        "capabilityInvocation"  => { capability_invocation.insert(data.id.clone(), reference); }
-        "capabilityDelegation"  => { capability_delegation.insert(data.id.clone(), reference); }
+        "authentication" => {
+            authentication.insert(data.id.clone(), reference);
+        }
+        "assertionMethod" => {
+            assertion_method.insert(data.id.clone(), reference);
+        }
+        "keyAgreement" => {
+            key_agreement.insert(data.id.clone(), reference);
+        }
+        "capabilityInvocation" => {
+            capability_invocation.insert(data.id.clone(), reference);
+        }
+        "capabilityDelegation" => {
+            capability_delegation.insert(data.id.clone(), reference);
+        }
         // "verificationMethod" — key is already in verification_methods above, no relationship bucket
         _ => {}
     }
@@ -297,10 +335,7 @@ fn apply_remove_verification_method(
     capability_delegation.remove(id);
 }
 
-fn apply_add_service(
-    event: &DIDAddServiceEvent,
-    services: &mut HashMap<String, Service>,
-) {
+fn apply_add_service(event: &DIDAddServiceEvent, services: &mut HashMap<String, Service>) {
     let data = &event.service;
     let svc = Service {
         id: data.id.clone(),
@@ -310,10 +345,7 @@ fn apply_add_service(
     services.insert(data.id.clone(), svc);
 }
 
-fn apply_remove_service(
-    event: &DIDRemoveServiceEvent,
-    services: &mut HashMap<String, Service>,
-) {
+fn apply_remove_service(event: &DIDRemoveServiceEvent, services: &mut HashMap<String, Service>) {
     services.remove(&event.service.id);
 }
 
@@ -323,16 +355,26 @@ fn apply_remove_service(
 
 #[cfg(test)]
 mod tests {
-    use super::DidDocumentBuilder;
-    use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
-    use hiero_did_core::{DIDError, HederaDid, KeysUtility, did::Network};
+    use base64::Engine;
+    use base64::engine::general_purpose::STANDARD as BASE64;
+    use hiero_did_core::did::Network;
+    use hiero_did_core::{
+        DIDError,
+        HederaDid,
+        KeysUtility,
+    };
     use hiero_did_messages::{
-        DIDOwnerMessage, HcsEnvelope,
-        DIDAddVerificationMethodMessage, DIDAddServiceMessage,
-        DIDRemoveVerificationMethodMessage, DIDRemoveServiceMessage,
+        DIDAddServiceMessage,
+        DIDAddVerificationMethodMessage,
         DIDDeactivateMessage,
+        DIDOwnerMessage,
+        DIDRemoveServiceMessage,
+        DIDRemoveVerificationMethodMessage,
+        HcsEnvelope,
     };
     use hiero_did_signer::InternalSigner;
+
+    use super::DidDocumentBuilder;
 
     fn fixture() -> (HederaDid, InternalSigner) {
         let signer = InternalSigner::from_bytes(&[3u8; 32]).expect("signer");
@@ -395,7 +437,9 @@ mod tests {
     async fn resolve_create_message() {
         let (did, signer) = fixture();
         let resolution = DidDocumentBuilder::from(vec![signed_create(&did, &signer)])
-            .resolve(&did).await.unwrap();
+            .resolve(&did)
+            .await
+            .unwrap();
         assert_eq!(resolution.did_document.id, did.to_string());
         assert_eq!(resolution.did_document_metadata.deactivated, Some(false));
         assert!(!resolution.did_document.verification_method.is_empty());
@@ -407,7 +451,10 @@ mod tests {
         let resolution = DidDocumentBuilder::from(vec![
             signed_create(&did, &signer),
             signed_delete(&did, &signer),
-        ]).resolve(&did).await.unwrap();
+        ])
+        .resolve(&did)
+        .await
+        .unwrap();
         assert_eq!(resolution.did_document_metadata.deactivated, Some(true));
     }
 
@@ -418,20 +465,25 @@ mod tests {
         let resolution = DidDocumentBuilder::from(vec![
             signed_create(&did, &signer),
             signed_add_vm(&did, &signer, &vm_id, "authentication"),
-        ]).resolve(&did).await.unwrap();
+        ])
+        .resolve(&did)
+        .await
+        .unwrap();
 
-        let has_vm = resolution.did_document.verification_method
-            .iter().any(|vm| vm.id() == vm_id);
+        let has_vm = resolution.did_document.verification_method.iter().any(|vm| vm.id() == vm_id);
         assert!(has_vm, "verification method should be present");
 
         let resolution2 = DidDocumentBuilder::from(vec![
             signed_create(&did, &signer),
             signed_add_vm(&did, &signer, &vm_id, "authentication"),
             signed_remove_vm(&did, &signer, &vm_id),
-        ]).resolve(&did).await.unwrap();
+        ])
+        .resolve(&did)
+        .await
+        .unwrap();
 
-        let has_vm2 = resolution2.did_document.verification_method
-            .iter().any(|vm| vm.id() == vm_id);
+        let has_vm2 =
+            resolution2.did_document.verification_method.iter().any(|vm| vm.id() == vm_id);
         assert!(!has_vm2, "verification method should be removed");
     }
 
@@ -443,14 +495,20 @@ mod tests {
         let resolution = DidDocumentBuilder::from(vec![
             signed_create(&did, &signer),
             signed_add_service(&did, &signer, &svc_id),
-        ]).resolve(&did).await.unwrap();
+        ])
+        .resolve(&did)
+        .await
+        .unwrap();
         assert!(resolution.did_document.service.is_some());
 
         let resolution2 = DidDocumentBuilder::from(vec![
             signed_create(&did, &signer),
             signed_add_service(&did, &signer, &svc_id),
             signed_remove_service(&did, &signer, &svc_id),
-        ]).resolve(&did).await.unwrap();
+        ])
+        .resolve(&did)
+        .await
+        .unwrap();
         assert!(resolution2.did_document.service.is_none());
     }
 
@@ -461,21 +519,20 @@ mod tests {
         let mut envelope: HcsEnvelope = serde_json::from_str(&payload).unwrap();
         envelope.signature = BASE64.encode([0u8; 64]);
         let tampered = serde_json::to_string(&envelope).unwrap();
-        let err = DidDocumentBuilder::from(vec![tampered])
-            .resolve(&did).await.expect_err("must fail");
+        let err =
+            DidDocumentBuilder::from(vec![tampered]).resolve(&did).await.expect_err("must fail");
         assert!(matches!(err, DIDError::NotFound(_)));
     }
 
     #[tokio::test]
     async fn unrelated_did_messages_are_filtered() {
         let (target_did, signer) = fixture();
-        let other_did = HederaDid::new(
-            Network::Testnet,
-            target_did.base58_key.clone(),
-            "0.0.999".to_string(),
-        );
+        let other_did =
+            HederaDid::new(Network::Testnet, target_did.base58_key.clone(), "0.0.999".to_string());
         let err = DidDocumentBuilder::from(vec![signed_create(&other_did, &signer)])
-            .resolve(&target_did).await.expect_err("must fail");
+            .resolve(&target_did)
+            .await
+            .expect_err("must fail");
         assert!(matches!(err, DIDError::NotFound(_)));
     }
 }

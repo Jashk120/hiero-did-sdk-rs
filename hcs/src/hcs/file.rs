@@ -1,15 +1,27 @@
-use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
-use hiero_did_core::DIDError;
-use hiero_sdk::{Client, TopicId};
-use sha2::{Digest, Sha256};
 use std::str::FromStr;
 use std::sync::Arc;
+
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64;
+use hiero_did_core::DIDError;
+use hiero_sdk::{
+    Client,
+    TopicId,
+};
+use sha2::{
+    Digest,
+    Sha256,
+};
 use time::OffsetDateTime;
 
 use crate::cache::HcsCacheService;
-use crate::hcs::{
-    message::{GetTopicMessagesProps, HcsMessage},
-    topic::{CreateTopicProps, HcsTopic},
+use crate::hcs::message::{
+    GetTopicMessagesProps,
+    HcsMessage,
+};
+use crate::hcs::topic::{
+    CreateTopicProps,
+    HcsTopic,
 };
 use crate::shared::wait_for_changes;
 
@@ -50,11 +62,7 @@ impl<'a> HcsFileService<'a> {
         network_name: impl Into<String>,
         cache: Option<HcsCacheService>,
     ) -> Self {
-        Self {
-            client,
-            network_name: network_name.into(),
-            cache,
-        }
+        Self { client, network_name: network_name.into(), cache }
     }
 
     pub async fn submit_file(&self, props: SubmitFileProps) -> Result<String, DIDError> {
@@ -74,11 +82,9 @@ impl<'a> HcsFileService<'a> {
         let chunks = self.build_chunks_from_payload(&props.payload)?;
 
         for (order_index, content) in &chunks {
-            let message = serde_json::to_string(&ChunkMessage {
-                o: *order_index,
-                c: content.clone(),
-            })
-            .map_err(|e| DIDError::SerializationError(e.to_string()))?;
+            let message =
+                serde_json::to_string(&ChunkMessage { o: *order_index, c: content.clone() })
+                    .map_err(|e| DIDError::SerializationError(e.to_string()))?;
 
             HcsMessage::submit(
                 self.client,
@@ -122,10 +128,7 @@ impl<'a> HcsFileService<'a> {
 
     pub async fn resolve_file(&self, props: &ResolveFileProps) -> Result<Vec<u8>, DIDError> {
         if let Some(cache) = &self.cache {
-            if let Some(cached) = cache
-                .get_topic_file(&self.network_name, &props.topic_id)
-                .await
-            {
+            if let Some(cached) = cache.get_topic_file(&self.network_name, &props.topic_id).await {
                 return Ok(cached);
             }
         }
@@ -133,9 +136,7 @@ impl<'a> HcsFileService<'a> {
         let payload = self.resolve_file_without_cache(props).await?;
 
         if let Some(cache) = &self.cache {
-            cache
-                .set_topic_file(&self.network_name, &props.topic_id, &payload)
-                .await;
+            cache.set_topic_file(&self.network_name, &props.topic_id, &payload).await;
         }
 
         Ok(payload)
@@ -188,9 +189,7 @@ impl<'a> HcsFileService<'a> {
 
         let checksum = sha256_hex(&payload);
         if !is_valid_hcs1_checksum(&info.topic_memo, &checksum) {
-            return Err(DIDError::InvalidArgument(
-                "HCS-1 file checksum mismatch".into(),
-            ));
+            return Err(DIDError::InvalidArgument("HCS-1 file checksum mismatch".into()));
         }
 
         Ok(payload)
@@ -221,9 +220,7 @@ impl<'a> HcsFileService<'a> {
 
         let content: String = chunks.into_iter().map(|c| c.c).collect();
 
-        let b64_data = content
-            .strip_prefix(BASE64_JSON_CONTENT_PREFIX)
-            .unwrap_or(&content);
+        let b64_data = content.strip_prefix(BASE64_JSON_CONTENT_PREFIX).unwrap_or(&content);
 
         let compressed = BASE64
             .decode(b64_data)
@@ -251,10 +248,7 @@ fn is_valid_hcs1_memo(memo: &str) -> bool {
 }
 
 fn is_valid_hcs1_checksum(memo: &str, checksum: &str) -> bool {
-    memo.split(':')
-        .next()
-        .map(|h| h == checksum)
-        .unwrap_or(false)
+    memo.split(':').next().map(|h| h == checksum).unwrap_or(false)
 }
 
 #[cfg(test)]
@@ -271,22 +265,14 @@ mod tests {
         let svc = file_service();
         let payload = "hello-hedera-".repeat(400).into_bytes();
 
-        let chunks = svc
-            .build_chunks_from_payload(&payload)
-            .expect("chunking should succeed");
+        let chunks = svc.build_chunks_from_payload(&payload).expect("chunking should succeed");
         assert!(!chunks.is_empty());
 
-        let chunk_messages: Vec<ChunkMessage> = chunks
-            .iter()
-            .map(|(o, c)| ChunkMessage {
-                o: *o,
-                c: c.clone(),
-            })
-            .collect();
+        let chunk_messages: Vec<ChunkMessage> =
+            chunks.iter().map(|(o, c)| ChunkMessage { o: *o, c: c.clone() }).collect();
 
-        let rebuilt = svc
-            .build_payload_from_chunks(chunk_messages)
-            .expect("rebuild should succeed");
+        let rebuilt =
+            svc.build_payload_from_chunks(chunk_messages).expect("rebuild should succeed");
         assert_eq!(rebuilt, payload);
     }
 
@@ -295,22 +281,14 @@ mod tests {
         let svc = file_service();
         let payload = b"order-check-payload".repeat(100);
 
-        let mut chunks = svc
-            .build_chunks_from_payload(&payload)
-            .expect("chunking should succeed");
+        let mut chunks = svc.build_chunks_from_payload(&payload).expect("chunking should succeed");
         chunks.reverse();
 
-        let chunk_messages: Vec<ChunkMessage> = chunks
-            .iter()
-            .map(|(o, c)| ChunkMessage {
-                o: *o,
-                c: c.clone(),
-            })
-            .collect();
+        let chunk_messages: Vec<ChunkMessage> =
+            chunks.iter().map(|(o, c)| ChunkMessage { o: *o, c: c.clone() }).collect();
 
-        let rebuilt = svc
-            .build_payload_from_chunks(chunk_messages)
-            .expect("rebuild should succeed");
+        let rebuilt =
+            svc.build_payload_from_chunks(chunk_messages).expect("rebuild should succeed");
         assert_eq!(rebuilt, payload);
     }
 
@@ -321,11 +299,7 @@ mod tests {
         assert!(is_valid_hcs1_memo(&valid));
         assert!(!is_valid_hcs1_memo("short"));
         assert!(!is_valid_hcs1_memo(&format!("{checksum}:not-zstd")));
-        assert!(!is_valid_hcs1_memo(&format!(
-            "{}{}",
-            "g".repeat(64),
-            HCS1_MEMO_PATTERN
-        )));
+        assert!(!is_valid_hcs1_memo(&format!("{}{}", "g".repeat(64), HCS1_MEMO_PATTERN)));
     }
 
     #[test]

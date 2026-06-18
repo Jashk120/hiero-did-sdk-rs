@@ -1,7 +1,14 @@
 use hiero_did_core::signer::Signer;
-use hiero_did_core::{DIDError, HederaDid};
+use hiero_did_core::{
+    DIDError,
+    HederaDid,
+};
 use hiero_did_hcs::HcsTopic;
-use hiero_did_lifecycle::{LifecycleBuilder, LifecycleRunner, LifecycleRunnerOptions};
+use hiero_did_lifecycle::{
+    LifecycleBuilder,
+    LifecycleRunner,
+    LifecycleRunnerOptions,
+};
 use hiero_did_messages::DIDDeactivateMessage;
 use hiero_did_signer::InternalSigner;
 use hiero_sdk::Client;
@@ -82,9 +89,18 @@ fn deactivate_lifecycle() -> Result<LifecycleRunner<DIDDeactivateMessage, ()>, D
 
 #[cfg(test)]
 mod tests {
-    use super::{deactivate_did, deactivate_did_with_signer};
-    use hiero_did_core::{DIDError, HederaDid, Signer, did::Network};
+    use hiero_did_core::did::Network;
+    use hiero_did_core::{
+        DIDError,
+        HederaDid,
+        Signer,
+    };
     use hiero_sdk::Client;
+
+    use super::{
+        deactivate_did,
+        deactivate_did_with_signer,
+    };
 
     struct TestSigner;
 

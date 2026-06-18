@@ -1,15 +1,20 @@
-use hiero_did_core::DIDError;
-use hiero_sdk::AccountId;
-use hiero_sdk::Client;
-use hiero_sdk::Hbar;
-use hiero_sdk::PrivateKey;
-use rust_decimal::Decimal;
 use std::collections::HashMap;
 use std::str::FromStr;
 
-use crate::configuration::HederaClientConfiguration;
-use crate::configuration::HederaNetwork;
-use crate::configuration::NetworkConfig;
+use hiero_did_core::DIDError;
+use hiero_sdk::{
+    AccountId,
+    Client,
+    Hbar,
+    PrivateKey,
+};
+use rust_decimal::Decimal;
+
+use crate::configuration::{
+    HederaClientConfiguration,
+    HederaNetwork,
+    NetworkConfig,
+};
 
 const MAX_TRANSACTION_FEE_HBAR: i64 = 2;
 
@@ -21,9 +26,7 @@ pub struct NetworkName {
 
 impl NetworkName {
     pub fn new(name: impl Into<String>) -> Self {
-        Self {
-            network_name: Some(name.into()),
-        }
+        Self { network_name: Some(name.into()) }
     }
 }
 
@@ -34,23 +37,17 @@ pub struct HederaClientService {
 impl HederaClientService {
     pub fn new(config: HederaClientConfiguration) -> Result<Self, DIDError> {
         if config.networks.is_empty() {
-            return Err(DIDError::InvalidArgument(
-                "Networks must not be empty".into(),
-            ));
+            return Err(DIDError::InvalidArgument("Networks must not be empty".into()));
         }
 
         // Validate unique network names
         let names: Vec<&str> = config.networks.iter().map(|n| n.network.name()).collect();
         let unique: std::collections::HashSet<&str> = names.iter().copied().collect();
         if unique.len() != names.len() {
-            return Err(DIDError::InvalidArgument(
-                "Network names must be unique".into(),
-            ));
+            return Err(DIDError::InvalidArgument("Network names must be unique".into()));
         }
 
-        Ok(Self {
-            configuration: config,
-        })
+        Ok(Self { configuration: config })
     }
 
     /// Build and return a configured client for the given network name.
@@ -144,8 +141,5 @@ impl HederaClientService {
 
 fn network_name_matches(network: &HederaNetwork, name: &str) -> bool {
     network.name() == name
-        || matches!(
-            (network, name),
-            (HederaNetwork::LocalNode, "local" | "localhost")
-        )
+        || matches!((network, name), (HederaNetwork::LocalNode, "local" | "localhost"))
 }

@@ -17,10 +17,7 @@ pub enum DIDError {
     #[error("Serialization error: {0}")]
     SerializationError(String),
     #[error("Orphaned topic {topic_id}: {reason}")]
-    OrphanedTopic {
-        topic_id: String,
-        reason: String,
-    },
+    OrphanedTopic { topic_id: String, reason: String },
     #[error("Representation not supported: {0}")]
     RepresentationNotSupported(String),
 }

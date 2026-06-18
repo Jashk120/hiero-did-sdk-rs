@@ -51,11 +51,7 @@ impl HederaDid {
     }
 
     pub fn to_did_string(&self) -> String {
-        format!("did:hedera:{}:{}_{}",
-            self.network,
-            self.base58_key,
-            self.topic_id
-        )
+        format!("did:hedera:{}:{}_{}", self.network, self.base58_key, self.topic_id)
     }
 
     pub fn root_key_id(&self) -> String {
@@ -77,7 +73,10 @@ impl std::str::FromStr for HederaDid {
         let parts: Vec<&str> = s.splitn(4, ':').collect();
 
         if parts.len() != 4 {
-            return Err(DIDError::InvalidDid(format!("Expected 4 colon-separated parts, got {}", s)));
+            return Err(DIDError::InvalidDid(format!(
+                "Expected 4 colon-separated parts, got {}",
+                s
+            )));
         }
 
         if parts[0] != "did" || parts[1] != "hedera" {
@@ -89,7 +88,10 @@ impl std::str::FromStr for HederaDid {
         // parts[3] is "<base58key>_<topicId>"
         let id_parts: Vec<&str> = parts[3].splitn(2, '_').collect();
         if id_parts.len() != 2 {
-            return Err(DIDError::InvalidDid(format!("Missing topic ID separator '_' in: {}", parts[3])));
+            return Err(DIDError::InvalidDid(format!(
+                "Missing topic ID separator '_' in: {}",
+                parts[3]
+            )));
         }
 
         let base58_key = id_parts[0].to_string();
@@ -107,7 +109,11 @@ impl std::str::FromStr for HederaDid {
 
 #[cfg(test)]
 mod tests {
-    use super::{DID_ROOT_KEY_ID, HederaDid, Network};
+    use super::{
+        DID_ROOT_KEY_ID,
+        HederaDid,
+        Network,
+    };
 
     #[test]
     fn network_parse_and_display() {
@@ -123,11 +129,7 @@ mod tests {
 
     #[test]
     fn hedera_did_round_trip() {
-        let did = HederaDid::new(
-            Network::Testnet,
-            "7Nf9Qabc".to_string(),
-            "0.0.12345".to_string(),
-        );
+        let did = HederaDid::new(Network::Testnet, "7Nf9Qabc".to_string(), "0.0.12345".to_string());
         let s = did.to_did_string();
         let parsed: HederaDid = s.parse().expect("must parse");
         assert_eq!(parsed, did);

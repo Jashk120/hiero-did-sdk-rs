@@ -1,9 +1,21 @@
-use hiero_did_core::{DIDError, HederaDid, Signer};
+use hiero_did_core::{
+    DIDError,
+    HederaDid,
+    Signer,
+};
 use hiero_did_hcs::HcsTopic;
-use hiero_did_lifecycle::{LifecycleBuilder, LifecycleMessage, LifecycleRunner, LifecycleRunnerOptions};
+use hiero_did_lifecycle::{
+    LifecycleBuilder,
+    LifecycleMessage,
+    LifecycleRunner,
+    LifecycleRunnerOptions,
+};
 use hiero_did_messages::{
-    DIDAddServiceMessage, DIDAddVerificationMethodMessage, DIDRemoveServiceMessage,
-    DIDRemoveVerificationMethodMessage, DIDUpdateMessage,
+    DIDAddServiceMessage,
+    DIDAddVerificationMethodMessage,
+    DIDRemoveServiceMessage,
+    DIDRemoveVerificationMethodMessage,
+    DIDUpdateMessage,
 };
 use hiero_did_signer::InternalSigner;
 use hiero_sdk::Client;
@@ -90,10 +102,7 @@ pub async fn update_did(
 
     // mirrors JS: if updates.length === 0 return early
     if updates.is_empty() {
-        return Ok(UpdateDIDResult {
-            did: did_str,
-            operations_applied: 0,
-        });
+        return Ok(UpdateDIDResult { did: did_str, operations_applied: 0 });
     }
 
     let topic_id = did
@@ -109,10 +118,7 @@ pub async fn update_did(
         applied += 1;
     }
 
-    Ok(UpdateDIDResult {
-        did: did_str,
-        operations_applied: applied,
-    })
+    Ok(UpdateDIDResult { did: did_str, operations_applied: applied })
 }
 
 // ---------------------------------------------------------------------------
@@ -141,7 +147,7 @@ async fn sign_and_submit(
     // 1. Sign (manual because DIDUpdateMessage doesn't store signature in inner types)
     let msg_bytes = message.message_bytes()?;
     let signature = signer.sign_bytes(&msg_bytes)?;
-    
+
     // 2. Use runner to wrap the process (unifies logs/hooks)
     let runner = update_lifecycle()?;
     let mut options = LifecycleRunnerOptions::new(());
@@ -150,7 +156,7 @@ async fn sign_and_submit(
 
     // This advances the lifecycle; if we add hooks later, they'll fire here.
     let _ = runner.process(message.clone(), options).await?;
-    
+
     // 3. Submit
     let payload = message.to_payload(&signature)?;
     HcsTopic::submit(client, topic_id, payload).await?;
@@ -158,8 +164,7 @@ async fn sign_and_submit(
 }
 
 fn update_lifecycle() -> Result<LifecycleRunner<DIDUpdateMessage, ()>, DIDError> {
-    let builder = LifecycleBuilder::new()
-        .sign_with_signer("sign")?;
+    let builder = LifecycleBuilder::new().sign_with_signer("sign")?;
     Ok(LifecycleRunner::new(builder))
 }
 
@@ -172,10 +177,8 @@ impl DIDUpdateMessageExt for DIDUpdateMessage {
     fn from_operation(did_str: &str, op: DIDUpdateOperation) -> Result<Self, DIDError> {
         match op {
             DIDUpdateOperation::AddVerificationMethod(opts) => {
-                if matches!(
-                    opts.property,
-                    VerificationMethodProperty::VerificationMethod
-                ) && opts.public_key_multibase.is_none()
+                if matches!(opts.property, VerificationMethodProperty::VerificationMethod)
+                    && opts.public_key_multibase.is_none()
                 {
                     return Err(DIDError::InvalidArgument(
                         "public_key_multibase is required for verificationMethod property".into(),
@@ -205,10 +208,7 @@ impl DIDUpdateMessageExt for DIDUpdateMessage {
                 )))
             }
             DIDUpdateOperation::RemoveService(opts) => {
-                Ok(Self::RemoveService(DIDRemoveServiceMessage::new(
-                    did_str.to_string(),
-                    opts.id,
-                )))
+                Ok(Self::RemoveService(DIDRemoveServiceMessage::new(did_str.to_string(), opts.id)))
             }
         }
     }
@@ -232,10 +232,7 @@ pub async fn update_did_with_signer(
     let did_str = did.to_string();
 
     if updates.is_empty() {
-        return Ok(UpdateDIDResult {
-            did: did_str,
-            operations_applied: 0,
-        });
+        return Ok(UpdateDIDResult { did: did_str, operations_applied: 0 });
     }
 
     let topic_id = did
@@ -249,21 +246,26 @@ pub async fn update_did_with_signer(
         applied += 1;
     }
 
-    Ok(UpdateDIDResult {
-        did: did_str,
-        operations_applied: applied,
-    })
+    Ok(UpdateDIDResult { did: did_str, operations_applied: applied })
 }
 
 #[cfg(test)]
 mod tests {
+    use hiero_did_core::did::Network;
+    use hiero_did_core::{
+        DIDError,
+        HederaDid,
+        Signer,
+    };
+    use hiero_sdk::Client;
+
     use super::{
-        AddVerificationMethod, DIDUpdateOperation, VerificationMethodProperty, update_did,
+        AddVerificationMethod,
+        DIDUpdateOperation,
+        VerificationMethodProperty,
+        update_did,
         update_did_with_signer,
     };
-    use hiero_did_core::Signer;
-    use hiero_did_core::{DIDError, HederaDid, did::Network};
-    use hiero_sdk::Client;
 
     struct TestSigner;
 
@@ -279,22 +281,10 @@ mod tests {
 
     #[test]
     fn verification_method_property_mapping() {
-        assert_eq!(
-            VerificationMethodProperty::VerificationMethod.as_str(),
-            "verificationMethod"
-        );
-        assert_eq!(
-            VerificationMethodProperty::Authentication.as_str(),
-            "authentication"
-        );
-        assert_eq!(
-            VerificationMethodProperty::AssertionMethod.as_str(),
-            "assertionMethod"
-        );
-        assert_eq!(
-            VerificationMethodProperty::KeyAgreement.as_str(),
-            "keyAgreement"
-        );
+        assert_eq!(VerificationMethodProperty::VerificationMethod.as_str(), "verificationMethod");
+        assert_eq!(VerificationMethodProperty::Authentication.as_str(), "authentication");
+        assert_eq!(VerificationMethodProperty::AssertionMethod.as_str(), "assertionMethod");
+        assert_eq!(VerificationMethodProperty::KeyAgreement.as_str(), "keyAgreement");
         assert_eq!(
             VerificationMethodProperty::CapabilityInvocation.as_str(),
             "capabilityInvocation"
@@ -309,9 +299,7 @@ mod tests {
     async fn update_with_empty_ops_returns_early() {
         let client = Client::for_testnet();
         let did = HederaDid::new(Network::Testnet, "abc".to_string(), "0.0.123".to_string());
-        let out = update_did(&client, did.clone(), &[1u8; 32], vec![])
-            .await
-            .expect("success");
+        let out = update_did(&client, did.clone(), &[1u8; 32], vec![]).await.expect("success");
         assert_eq!(out.did, did.to_string());
         assert_eq!(out.operations_applied, 0);
     }
@@ -322,9 +310,8 @@ mod tests {
         let did = HederaDid::new(Network::Testnet, "abc".to_string(), "0.0.123".to_string());
         let signer = TestSigner;
 
-        let out = update_did_with_signer(&client, did.clone(), &signer, vec![])
-            .await
-            .expect("success");
+        let out =
+            update_did_with_signer(&client, did.clone(), &signer, vec![]).await.expect("success");
 
         assert_eq!(out.did, did.to_string());
         assert_eq!(out.operations_applied, 0);
@@ -352,9 +339,8 @@ mod tests {
         let client = Client::for_testnet();
         let did = HederaDid::new(Network::Testnet, "abc".to_string(), "bad-topic".to_string());
         let signer = TestSigner;
-        let op = DIDUpdateOperation::RemoveService(super::RemoveService {
-            id: format!("{did}#svc-1"),
-        });
+        let op =
+            DIDUpdateOperation::RemoveService(super::RemoveService { id: format!("{did}#svc-1") });
 
         let err = match update_did_with_signer(&client, did, &signer, vec![op]).await {
             Ok(_) => panic!("must fail"),

@@ -5,35 +5,51 @@ pub mod deactivate;
 #[path = "update_csm.rs"]
 pub mod update;
 
-pub use create::prepare_create_did_csm;
-pub use create::prepare_create_did_csm_with_options;
-pub use create::submit_create_did_csm;
-pub use deactivate::prepare_deactivate_did_csm;
-pub use deactivate::prepare_deactivate_did_csm_with_options;
-pub use deactivate::submit_deactivate_did_csm;
-pub use update::prepare_update_did_csm;
-pub use update::prepare_update_did_csm_with_options;
-pub use update::submit_update_did_csm;
+use std::str::FromStr;
+use std::time::{
+    SystemTime,
+    UNIX_EPOCH,
+};
 
-use hiero_did_core::DIDError;
-use hiero_did_core::HederaDid;
-use hiero_did_core::KeysUtility;
+pub use create::{
+    prepare_create_did_csm,
+    prepare_create_did_csm_with_options,
+    submit_create_did_csm,
+};
+pub use deactivate::{
+    prepare_deactivate_did_csm,
+    prepare_deactivate_did_csm_with_options,
+    submit_deactivate_did_csm,
+};
+use hiero_did_core::{
+    DIDError,
+    HederaDid,
+    KeysUtility,
+};
 use hiero_did_hcs::HcsTopic;
-use hiero_did_messages::DIDAddServiceMessage;
-use hiero_did_messages::DIDAddVerificationMethodMessage;
-use hiero_did_messages::DIDDeactivateMessage;
-use hiero_did_messages::DIDOwnerMessage;
-use hiero_did_messages::DIDRemoveServiceMessage;
-use hiero_did_messages::DIDRemoveVerificationMethodMessage;
+use hiero_did_messages::{
+    DIDAddServiceMessage,
+    DIDAddVerificationMethodMessage,
+    DIDDeactivateMessage,
+    DIDOwnerMessage,
+    DIDRemoveServiceMessage,
+    DIDRemoveVerificationMethodMessage,
+};
 use hiero_did_signer::InternalVerifier;
 use hiero_sdk::Client;
-use serde::Deserialize;
-use serde::Serialize;
-use sha2::Digest;
-use sha2::Sha256;
-use std::str::FromStr;
-use std::time::SystemTime;
-use std::time::UNIX_EPOCH;
+use serde::{
+    Deserialize,
+    Serialize,
+};
+use sha2::{
+    Digest,
+    Sha256,
+};
+pub use update::{
+    prepare_update_did_csm,
+    prepare_update_did_csm_with_options,
+    submit_update_did_csm,
+};
 
 pub const CSM_STATE_VERSION: u16 = 1;
 pub const PAUSE_FOR_SIGNATURE_LABEL: &str = "pause-for-signature";
@@ -55,10 +71,7 @@ impl CsmSigningRequest {
     pub fn into_submit_request(self, signature: Vec<u8>) -> Result<CsmSubmitRequest, DIDError> {
         require_signature(&signature)?;
         self.state.validate_for_submit(&signature)?;
-        Ok(CsmSubmitRequest {
-            state: self.state,
-            signature,
-        })
+        Ok(CsmSubmitRequest { state: self.state, signature })
     }
 }
 
@@ -212,19 +225,16 @@ impl CsmOperationState {
 
     pub fn rebuild_message_bytes(&self) -> Result<Vec<u8>, DIDError> {
         match &self.message {
-            CsmMessageState::DidOwner {
-                did,
-                public_key_bytes,
-                timestamp,
-                controller,
-            } => DIDOwnerMessage {
-                did: parse_did(did)?,
-                public_key_bytes: public_key_bytes.clone(),
-                timestamp: timestamp.clone(),
-                controller: controller.clone(),
-                signature: None,
+            CsmMessageState::DidOwner { did, public_key_bytes, timestamp, controller } => {
+                DIDOwnerMessage {
+                    did: parse_did(did)?,
+                    public_key_bytes: public_key_bytes.clone(),
+                    timestamp: timestamp.clone(),
+                    controller: controller.clone(),
+                    signature: None,
+                }
+                .message_bytes()
             }
-            .message_bytes(),
             CsmMessageState::AddVerificationMethod {
                 did,
                 id,
@@ -249,31 +259,26 @@ impl CsmOperationState {
                 }
                 .message_bytes()
             }
-            CsmMessageState::AddService {
-                did,
-                id,
-                service_type,
-                service_endpoint,
-                timestamp,
-            } => DIDAddServiceMessage {
-                did: did.clone(),
-                id: id.clone(),
-                service_type: service_type.clone(),
-                service_endpoint: service_endpoint.clone(),
-                timestamp: timestamp.clone(),
+            CsmMessageState::AddService { did, id, service_type, service_endpoint, timestamp } => {
+                DIDAddServiceMessage {
+                    did: did.clone(),
+                    id: id.clone(),
+                    service_type: service_type.clone(),
+                    service_endpoint: service_endpoint.clone(),
+                    timestamp: timestamp.clone(),
+                }
+                .message_bytes()
             }
-            .message_bytes(),
             CsmMessageState::RemoveService { did, id, timestamp } => DIDRemoveServiceMessage {
                 did: did.clone(),
                 id: id.clone(),
                 timestamp: timestamp.clone(),
             }
             .message_bytes(),
-            CsmMessageState::Deactivate { did, timestamp } => DIDDeactivateMessage {
-                did: parse_did(did)?,
-                timestamp: timestamp.clone(),
+            CsmMessageState::Deactivate { did, timestamp } => {
+                DIDDeactivateMessage { did: parse_did(did)?, timestamp: timestamp.clone() }
+                    .message_bytes()
             }
-            .message_bytes(),
         }
     }
 
@@ -281,19 +286,16 @@ impl CsmOperationState {
         self.validate_for_submit(signature)?;
 
         match &self.message {
-            CsmMessageState::DidOwner {
-                did,
-                public_key_bytes,
-                timestamp,
-                controller,
-            } => DIDOwnerMessage {
-                did: parse_did(did)?,
-                public_key_bytes: public_key_bytes.clone(),
-                timestamp: timestamp.clone(),
-                controller: controller.clone(),
-                signature: None,
+            CsmMessageState::DidOwner { did, public_key_bytes, timestamp, controller } => {
+                DIDOwnerMessage {
+                    did: parse_did(did)?,
+                    public_key_bytes: public_key_bytes.clone(),
+                    timestamp: timestamp.clone(),
+                    controller: controller.clone(),
+                    signature: None,
+                }
+                .to_payload(signature)
             }
-            .to_payload(signature),
             CsmMessageState::AddVerificationMethod {
                 did,
                 id,
@@ -318,31 +320,26 @@ impl CsmOperationState {
                 }
                 .to_payload(signature)
             }
-            CsmMessageState::AddService {
-                did,
-                id,
-                service_type,
-                service_endpoint,
-                timestamp,
-            } => DIDAddServiceMessage {
-                did: did.clone(),
-                id: id.clone(),
-                service_type: service_type.clone(),
-                service_endpoint: service_endpoint.clone(),
-                timestamp: timestamp.clone(),
+            CsmMessageState::AddService { did, id, service_type, service_endpoint, timestamp } => {
+                DIDAddServiceMessage {
+                    did: did.clone(),
+                    id: id.clone(),
+                    service_type: service_type.clone(),
+                    service_endpoint: service_endpoint.clone(),
+                    timestamp: timestamp.clone(),
+                }
+                .to_payload(signature)
             }
-            .to_payload(signature),
             CsmMessageState::RemoveService { did, id, timestamp } => DIDRemoveServiceMessage {
                 did: did.clone(),
                 id: id.clone(),
                 timestamp: timestamp.clone(),
             }
             .to_payload(signature),
-            CsmMessageState::Deactivate { did, timestamp } => DIDDeactivateMessage {
-                did: parse_did(did)?,
-                timestamp: timestamp.clone(),
+            CsmMessageState::Deactivate { did, timestamp } => {
+                DIDDeactivateMessage { did: parse_did(did)?, timestamp: timestamp.clone() }
+                    .to_payload(signature)
             }
-            .to_payload(signature),
         }
     }
 
@@ -372,12 +369,8 @@ impl CsmOperationState {
             )));
         }
 
-        let expected_request_id = build_request_id(
-            &self.did,
-            &self.topic_id,
-            &self.operation,
-            &self.message_bytes,
-        );
+        let expected_request_id =
+            build_request_id(&self.did, &self.topic_id, &self.operation, &self.message_bytes);
         if self.request_id != expected_request_id {
             return Err(DIDError::InvalidArgument(
                 "CSM request_id does not match operation state".to_string(),
@@ -419,9 +412,7 @@ impl CsmOperationState {
 
 pub fn require_signature(signature: &[u8]) -> Result<(), DIDError> {
     if signature.is_empty() {
-        return Err(DIDError::InvalidArgument(
-            "CSM signature cannot be empty".to_string(),
-        ));
+        return Err(DIDError::InvalidArgument("CSM signature cannot be empty".to_string()));
     }
 
     if signature.len() != 64 {
@@ -504,12 +495,8 @@ pub(crate) fn build_state(
         message,
     };
     state.message_bytes = state.rebuild_message_bytes()?;
-    state.request_id = build_request_id(
-        &state.did,
-        &state.topic_id,
-        &state.operation,
-        &state.message_bytes,
-    );
+    state.request_id =
+        build_request_id(&state.did, &state.topic_id, &state.operation, &state.message_bytes);
     Ok(state)
 }
 
@@ -546,15 +533,22 @@ fn current_unix_timestamp() -> Result<i64, DIDError> {
 
 #[cfg(test)]
 mod tests {
-    use super::deactivate::prepare_deactivate_did_csm;
-    use super::deactivate::prepare_deactivate_did_csm_with_options;
-    use super::require_signature;
-    use super::update::prepare_update_did_csm;
-    use super::*;
-    use crate::update::AddService;
-    use crate::update::DIDUpdateOperation;
     use hiero_did_core::did::Network;
     use hiero_did_signer::InternalSigner;
+
+    use super::deactivate::{
+        prepare_deactivate_did_csm,
+        prepare_deactivate_did_csm_with_options,
+    };
+    use super::update::prepare_update_did_csm;
+    use super::{
+        require_signature,
+        *,
+    };
+    use crate::update::{
+        AddService,
+        DIDUpdateOperation,
+    };
 
     fn test_signer() -> InternalSigner {
         InternalSigner::from_bytes(&[9u8; 32]).expect("signer")
@@ -581,10 +575,7 @@ mod tests {
         assert_eq!(request.request_id, request.state.request_id);
         assert_eq!(request.operation, "delete");
         assert_eq!(request.lifecycle_label, PAUSE_FOR_SIGNATURE_LABEL);
-        assert_eq!(
-            request.message_bytes,
-            request.state.rebuild_message_bytes().expect("bytes")
-        );
+        assert_eq!(request.message_bytes, request.state.rebuild_message_bytes().expect("bytes"));
     }
 
     #[tokio::test]
@@ -606,10 +597,7 @@ mod tests {
         assert_eq!(request.requests.len(), 1);
         assert_eq!(
             request.requests[0].message_bytes,
-            request.requests[0]
-                .state
-                .rebuild_message_bytes()
-                .expect("bytes")
+            request.requests[0].state.rebuild_message_bytes().expect("bytes")
         );
     }
 
@@ -618,10 +606,8 @@ mod tests {
         let signer = test_signer();
         let request = prepare_deactivate_did_csm(test_did(&signer)).await.expect("prepare");
         let signature = signer.sign(&request.message_bytes);
-        let submit = request
-            .clone()
-            .into_submit_request(signature.clone())
-            .expect("submit request");
+        let submit =
+            request.clone().into_submit_request(signature.clone()).expect("submit request");
 
         assert_eq!(submit.state.did, request.did);
         assert_eq!(submit.signature, signature);
@@ -650,9 +636,7 @@ mod tests {
     async fn submit_request_rejects_invalid_signature() {
         let signer = test_signer();
         let request = prepare_deactivate_did_csm(test_did(&signer)).await.expect("prepare");
-        let err = request
-            .into_submit_request(vec![1u8; 64])
-            .expect_err("must fail");
+        let err = request.into_submit_request(vec![1u8; 64]).expect_err("must fail");
 
         assert!(matches!(err, DIDError::InvalidSignature(_)));
     }
@@ -662,16 +646,12 @@ mod tests {
         let signer = test_signer();
         let request = prepare_deactivate_did_csm_with_options(
             test_did(&signer),
-            CsmPrepareOptions {
-                expires_at_unix: Some(1),
-            },
+            CsmPrepareOptions { expires_at_unix: Some(1) },
         )
         .await
         .expect("prepare");
         let signature = signer.sign(&request.message_bytes);
-        let err = request
-            .into_submit_request(signature)
-            .expect_err("must fail");
+        let err = request.into_submit_request(signature).expect_err("must fail");
 
         assert!(matches!(err, DIDError::InvalidArgument(_)));
     }
@@ -687,8 +667,6 @@ mod tests {
         assert_eq!(decoded.request_id, request.request_id);
 
         let signature = signer.sign(&decoded.message_bytes);
-        decoded
-            .into_submit_request(signature)
-            .expect("submit request");
+        decoded.into_submit_request(signature).expect("submit request");
     }
 }

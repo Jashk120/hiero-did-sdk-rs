@@ -7,9 +7,13 @@ mod vault_api;
 #[cfg(feature = "vault")]
 mod vault_config;
 
-pub use internal::{InternalSigner, InternalVerifier};
-
+pub use internal::{
+    InternalSigner,
+    InternalVerifier,
+};
 #[cfg(feature = "vault")]
 pub use vault::VaultSigner;
 #[cfg(feature = "vault")]
-pub use vault_config::{VaultAuth, VaultSignerConfig};
+pub use vault_config::VaultAuth;
+#[cfg(feature = "vault")]
+pub use vault_config::VaultSignerConfig;

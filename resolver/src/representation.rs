@@ -1,4 +1,9 @@
-use hiero_did_core::{Accept, DIDError, DIDResolution, RepresentedDocument};
+use hiero_did_core::{
+    Accept,
+    DIDError,
+    DIDResolution,
+    RepresentedDocument,
+};
 
 /// Render a resolved DID document into the representation the caller asked for.
 /// Mirrors JS's `DIDDereferenceBuilder.toJson/toJsonLd/toResolution/toCbor`.
@@ -36,9 +41,14 @@ pub fn represent(
 
 #[cfg(test)]
 mod tests {
+    use hiero_did_core::{
+        DIDDocument,
+        DIDDocumentMetadata,
+        DIDResolutionMetadata,
+    };
+
     use super::*;
-    use hiero_did_core::{DIDDocument, DIDDocumentMetadata, DIDResolutionMetadata};
-    
+
     fn fixture_resolution() -> DIDResolution {
         DIDResolution {
             did_document: DIDDocument {

@@ -1,6 +1,7 @@
-use hiero_did_core::DIDError;
 use std::future::Future;
 use std::pin::Pin;
+
+use hiero_did_core::DIDError;
 
 pub type LifecycleFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 

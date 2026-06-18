@@ -21,10 +21,7 @@ async fn main() {
 
     let mut network = std::collections::HashMap::new();
 
-    network.insert(
-        "127.0.0.1:50211".to_string(),
-        AccountId::from(3),
-    );
+    network.insert("127.0.0.1:50211".to_string(), AccountId::from(3));
 
     println!("network configured");
 

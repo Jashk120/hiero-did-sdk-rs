@@ -1,24 +1,32 @@
-use crate::csm::CsmMessageState;
-use crate::csm::CsmOperationState;
-use crate::csm::CsmPrepareOptions;
-use crate::csm::CsmSigningRequest;
-use crate::csm::CsmSubmitRequest;
-use crate::csm::CsmSubmitResult;
-use crate::csm::build_state;
-use crate::csm::public_key_from_did;
-use crate::csm::submit_csm_request;
-use hiero_did_core::DIDError;
-use hiero_did_core::HederaDid;
-use hiero_did_lifecycle::LifecycleBuilder;
-use hiero_did_lifecycle::LifecycleRunner;
-use hiero_did_lifecycle::LifecycleRunnerOptions;
-use hiero_did_lifecycle::RunnerStatus;
+use hiero_did_core::{
+    DIDError,
+    HederaDid,
+};
+use hiero_did_lifecycle::{
+    LifecycleBuilder,
+    LifecycleRunner,
+    LifecycleRunnerOptions,
+    RunnerStatus,
+};
 use hiero_did_messages::DIDDeactivateMessage;
 use hiero_sdk::Client;
 
+use crate::csm::{
+    CsmMessageState,
+    CsmOperationState,
+    CsmPrepareOptions,
+    CsmSigningRequest,
+    CsmSubmitRequest,
+    CsmSubmitResult,
+    build_state,
+    public_key_from_did,
+    submit_csm_request,
+};
+
 const STEP_SIGN: &str = "pause-for-signature";
 
-fn deactivate_lifecycle() -> Result<LifecycleRunner<DIDDeactivateMessage, CsmOperationState>, DIDError> {
+fn deactivate_lifecycle()
+-> Result<LifecycleRunner<DIDDeactivateMessage, CsmOperationState>, DIDError> {
     let builder = LifecycleBuilder::new().pause(STEP_SIGN)?;
     Ok(LifecycleRunner::new(builder))
 }
@@ -40,23 +48,16 @@ pub async fn prepare_deactivate_did_csm_with_options(
         did_string.clone(),
         topic_id,
         "delete".to_string(),
-        CsmMessageState::Deactivate {
-            did: did_string,
-            timestamp: message.timestamp.clone(),
-        },
+        CsmMessageState::Deactivate { did: did_string, timestamp: message.timestamp.clone() },
         expected_public_key_bytes,
         options,
     )?;
 
     let runner = deactivate_lifecycle()?;
-    let runner_state = runner
-        .process(message, LifecycleRunnerOptions::new(csm_state))
-        .await?;
+    let runner_state = runner.process(message, LifecycleRunnerOptions::new(csm_state)).await?;
 
     if runner_state.status != RunnerStatus::Pause {
-        return Err(DIDError::InternalError(
-            "Expected lifecycle to pause for signature".into(),
-        ));
+        return Err(DIDError::InternalError("Expected lifecycle to pause for signature".into()));
     }
 
     runner_state.context.signing_request()

@@ -1,5 +1,8 @@
-use hiero_did_core::{DIDError, HederaDid};
 use base64::Engine;
+use hiero_did_core::{
+    DIDError,
+    HederaDid,
+};
 
 pub const ANONCREDS_SEPARATOR: &str = "/";
 pub const ANONCREDS_OBJECT_FAMILY: &str = "anoncreds";
@@ -39,14 +42,8 @@ pub fn build_anoncreds_identifier(
     topic_id: &str,
     object_type: AnonCredsObjectType,
 ) -> String {
-    [
-        publisher_did,
-        ANONCREDS_OBJECT_FAMILY,
-        ANONCREDS_VERSION,
-        object_type.as_str(),
-        topic_id,
-    ]
-    .join(ANONCREDS_SEPARATOR)
+    [publisher_did, ANONCREDS_OBJECT_FAMILY, ANONCREDS_VERSION, object_type.as_str(), topic_id]
+        .join(ANONCREDS_SEPARATOR)
 }
 
 pub fn parse_anoncreds_identifier(id: &str) -> Result<AnonCredsIdentifier, DIDError> {
@@ -58,9 +55,9 @@ pub fn parse_anoncreds_identifier(id: &str) -> Result<AnonCredsIdentifier, DIDEr
         )));
     }
 
-    let did: HederaDid = parts[0]
-        .parse()
-        .map_err(|_| DIDError::InvalidArgument(format!("Invalid DID in identifier: {}", parts[0])))?;
+    let did: HederaDid = parts[0].parse().map_err(|_| {
+        DIDError::InvalidArgument(format!("Invalid DID in identifier: {}", parts[0]))
+    })?;
 
     Ok(AnonCredsIdentifier {
         issuer_did: parts[0].to_string(),
@@ -72,8 +69,10 @@ pub fn parse_anoncreds_identifier(id: &str) -> Result<AnonCredsIdentifier, DIDEr
     })
 }
 
-
-use serde::{Deserialize, Serialize};
+use serde::{
+    Deserialize,
+    Serialize,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RevocationRegistryEntryValue {
@@ -96,11 +95,14 @@ pub struct RevocationRegistryEntryWrapper {
     pub payload: String, // base64 encoded zstd compressed RevocationRegistryEntry
 }
 
-pub fn pack_revocation_entry(entry: &RevocationRegistryEntry) -> Result<String, hiero_did_core::DIDError> {
+pub fn pack_revocation_entry(
+    entry: &RevocationRegistryEntry,
+) -> Result<String, hiero_did_core::DIDError> {
     let json = serde_json::to_vec(entry)
         .map_err(|e| hiero_did_core::DIDError::SerializationError(e.to_string()))?;
-    let compressed = zstd::encode_all(json.as_slice(), 0)
-        .map_err(|e| hiero_did_core::DIDError::InternalError(format!("zstd compress failed: {e}")))?;
+    let compressed = zstd::encode_all(json.as_slice(), 0).map_err(|e| {
+        hiero_did_core::DIDError::InternalError(format!("zstd compress failed: {e}"))
+    })?;
     let payload = base64::engine::general_purpose::STANDARD.encode(&compressed);
     let wrapper = RevocationRegistryEntryWrapper { payload };
     serde_json::to_string(&wrapper)
@@ -155,7 +157,10 @@ mod tests {
     fn parse_identifier_roundtrip() {
         let id = "did:hedera:testnet:zFAeKMsqnNc2bwEsC8oqENBvGqjpGu9tpUi3VWaFEBXBo_0.0.5896419/anoncreds/v1/SCHEMA/0.0.5896422";
         let parsed = parse_anoncreds_identifier(id).expect("should parse");
-        assert_eq!(parsed.issuer_did, "did:hedera:testnet:zFAeKMsqnNc2bwEsC8oqENBvGqjpGu9tpUi3VWaFEBXBo_0.0.5896419");
+        assert_eq!(
+            parsed.issuer_did,
+            "did:hedera:testnet:zFAeKMsqnNc2bwEsC8oqENBvGqjpGu9tpUi3VWaFEBXBo_0.0.5896419"
+        );
         assert_eq!(parsed.network_name, "testnet");
         assert_eq!(parsed.object_family, "anoncreds");
         assert_eq!(parsed.version, "v1");
@@ -166,7 +171,9 @@ mod tests {
     #[test]
     fn parse_identifier_invalid() {
         assert!(parse_anoncreds_identifier("not/valid").is_err());
-        assert!(parse_anoncreds_identifier("did:hedera:testnet:abc_0.0.1/anoncreds/v1/SCHEMA").is_err());
+        assert!(
+            parse_anoncreds_identifier("did:hedera:testnet:abc_0.0.1/anoncreds/v1/SCHEMA").is_err()
+        );
     }
 
     #[test]
