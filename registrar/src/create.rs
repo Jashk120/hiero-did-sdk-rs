@@ -113,7 +113,7 @@ async fn finalize_did(
 /// it's left unchanged rather than double-prefixed.
 fn orphan(topic_id: TopicId, e: DIDError) -> DIDError {
     let msg = e.to_string();
-    if msg.starts_with("orphaned_topic=") {
+    if msg.contains("orphaned_topic=") {
         return e;
     }
     DIDError::InternalError(format!("orphaned_topic={} reason={}", topic_id, msg))
@@ -153,7 +153,7 @@ async fn submit_with_retry(
             Err(e) => {
                 let msg = e.to_string();
 
-                if msg.starts_with("submit_receipt_failed") {
+                if msg.contains("submit_receipt_failed") {
                     // Transaction may have reached consensus; resubmitting
                     // risks a duplicate message. Don't retry — surface
                     // immediately as ambiguous/orphaned.
@@ -194,4 +194,76 @@ async fn submit_with_retry(
 fn create_lifecycle() -> Result<LifecycleRunner<DIDOwnerMessage, ()>, DIDError> {
     let builder = LifecycleBuilder::new().sign_with_signer("sign")?;
     Ok(LifecycleRunner::new(builder))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The error produced by `HcsTopic::submit` when the receipt fetch fails is
+    /// `DIDError::InternalError("submit_receipt_failed: <details>")`.
+    /// `thiserror` renders that as `"Internal error: submit_receipt_failed: <details>"`.
+    /// This test proves that `contains()` matches while `starts_with()` would not.
+    #[test]
+    fn submit_receipt_error_is_detected_by_contains() {
+        let inner =
+            DIDError::InternalError("submit_receipt_failed: status UNKNOWN".into());
+        let rendered = inner.to_string();
+
+        // The rendered form has the thiserror prefix, so starts_with would fail:
+        assert!(
+            !rendered.starts_with("submit_receipt_failed"),
+            "starts_with should NOT match (thiserror prefix present): {rendered}"
+        );
+        // ...but contains matches correctly:
+        assert!(
+            rendered.contains("submit_receipt_failed"),
+            "contains must match the inner marker: {rendered}"
+        );
+    }
+
+    /// `orphan()` should detect an already-prefixed error and return it unchanged,
+    /// even when the prefix is behind the thiserror `"Internal error: "` wrapper.
+    #[test]
+    fn orphan_deduplicates_already_prefixed_error() {
+        let topic_id: TopicId = "0.0.12345".parse().unwrap();
+
+        // Simulate an error that already carries the orphaned_topic tag
+        // (e.g. bubbled up from submit_with_retry → finalize_did).
+        let already_tagged = DIDError::InternalError(
+            "orphaned_topic=0.0.12345 reason=boom".into(),
+        );
+
+        let result = orphan(topic_id, already_tagged);
+        let msg = result.to_string();
+
+        // Should NOT double-prefix:
+        assert!(
+            !msg.contains("orphaned_topic=0.0.12345 reason=Internal error: orphaned_topic="),
+            "orphan() must not double-prefix: {msg}"
+        );
+        // The original message should be preserved as-is:
+        assert!(
+            msg.contains("orphaned_topic=0.0.12345 reason=boom"),
+            "original payload must be preserved: {msg}"
+        );
+    }
+
+    /// A fresh error without the orphaned_topic tag should be wrapped.
+    #[test]
+    fn orphan_wraps_fresh_error() {
+        let topic_id: TopicId = "0.0.99999".parse().unwrap();
+        let fresh = DIDError::InternalError("connection refused".into());
+        let result = orphan(topic_id, fresh);
+        let msg = result.to_string();
+
+        assert!(
+            msg.contains("orphaned_topic=0.0.99999"),
+            "must contain orphaned_topic tag: {msg}"
+        );
+        assert!(
+            msg.contains("connection refused"),
+            "must contain original reason: {msg}"
+        );
+    }
 }

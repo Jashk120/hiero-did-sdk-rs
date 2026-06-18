@@ -59,7 +59,7 @@ impl HcsMessage {
             Err(e) => {
                 take_signing_error(&signing_errors)?;
                 return Err(DIDError::InternalError(format!(
-                    "Failed to submit message: {e}"
+                    "submit_execute_failed: {e}"
                 )));
             }
         };
@@ -68,7 +68,7 @@ impl HcsMessage {
         let receipt = response
             .get_receipt(client)
             .await
-            .map_err(|e| DIDError::InternalError(format!("Failed to get message receipt: {e}")))?;
+            .map_err(|e| DIDError::InternalError(format!("submit_receipt_failed: {e}")))?;
 
         if receipt.status != hiero_sdk::Status::Success {
             return Err(DIDError::InternalError(format!(
