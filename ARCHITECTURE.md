@@ -81,6 +81,7 @@ Canonical DID model and shared structures:
 - `did`: `Network` (Mainnet, Testnet, Previewnet, Local), `HederaDid`, `DID_METHOD`, `DID_ROOT_KEY_ID`.
 - `did_url`: `HederaDidUrl` parser for DID URLs.
 - `document`: DID document, verification method, service, and resolution metadata models.
+- `representation`: shared `RepresentedDocument` data model and `Accept` types for content negotiation.
 - `keys`: `KeysUtility` for base58 and multibase conversion.
 - `error`: shared `DIDError` enumeration.
 - `signer`: crate-agnostic synchronous `Signer` trait.
@@ -148,10 +149,13 @@ Generic linear lifecycle runner:
 
 ### 3.9 `hiero-did-resolver`
 Resolution orchestration:
+- `TopicReader`: abstraction over transport mechanisms for fetching DID message history.
 - `MirrorNodeClient`: fetches topic messages from mirror-node REST APIs.
+- `GrpcTopicReader`: fetches topic messages directly from Hedera consensus nodes via gRPC.
 - `DidDocumentBuilder`: folds validated events into a DID document.
 - `dereference_did`: resolves DID URLs against document resources (verification systems, services).
 - `DereferencedResource`: represents documents, verification methods, or services.
+- `representation`: handles content-type negotiation (e.g., `application/did+json`, `application/did+ld+json`, `application/did+cbor`) for output documents.
 
 ### 3.10 `hiero-did-anoncreds`
 AnonCreds registry layer on top of `HederaHcsService`:
@@ -191,9 +195,10 @@ Leverages the `LifecycleRunner` pattern:
 3. **Submit**: SDK resumes the lifecycle with the signature, validates, and submits to HCS.
 
 ### 4.4 Resolve DID
-1. Fetch topic message history via `MirrorNodeClient`.
-2. Filter and validated events (owner -> updates -> deactivation).
-3. fold events into final `DIDDocument`.
+1. Fetch topic message history via a `TopicReader` (e.g., `MirrorNodeClient` or `GrpcTopicReader`).
+2. Filter and validate events (owner -> updates -> deactivation).
+3. Fold events into final `DIDDocument`.
+4. (Optional) represent document via requested `Accept` format (JSON, JSON-LD, CBOR, etc).
 
 ## 5. Error Model
 Domain, network, and signing failures map to `hiero_did_core::DIDError`:
