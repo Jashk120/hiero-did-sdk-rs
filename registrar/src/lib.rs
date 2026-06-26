@@ -6,6 +6,7 @@ pub mod update;
 pub use create::{
     CreateDIDResult,
     CreateDIDWithSignerResult,
+    create_did,
     create_did_with_signer,
 };
 pub use csm::{
