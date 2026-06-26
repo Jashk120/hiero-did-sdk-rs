@@ -124,7 +124,11 @@ mod tests {
 
     #[test]
     fn cbor_round_trip_with_verification_method_and_service() {
-        use hiero_did_core::{Service, VerificationMethod, VerificationMethodMultibase};
+        use hiero_did_core::{
+            Service,
+            VerificationMethod,
+            VerificationMethodMultibase,
+        };
 
         let doc = DIDDocument {
             context: vec!["https://www.w3.org/ns/did/v1".to_string()],

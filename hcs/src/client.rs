@@ -75,8 +75,8 @@ impl HcsClient {
         account_id: AccountId,
         private_key: PrivateKey,
     ) -> Result<Self, DIDError> {
-        let node_addr = std::env::var("HEDERA_NODE_ADDRESS")
-            .unwrap_or_else(|_| "127.0.0.1:35211".to_string());
+        let node_addr =
+            std::env::var("HEDERA_NODE_ADDRESS").unwrap_or_else(|_| "127.0.0.1:35211".to_string());
         let mirror_addr = std::env::var("HEDERA_MIRROR_NODE_ADDRESS")
             .unwrap_or_else(|_| "127.0.0.1:38081".to_string());
 

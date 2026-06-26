@@ -13,5 +13,9 @@ pub use grpc_reader::GrpcTopicReader;
 pub use hcs_topic_reader::HcsTopicReader;
 pub use mirror::MirrorNodeClient;
 pub use representation::represent;
-pub use resolve::{resolve_did, dereference_did_url, dereference_did_url_with_accept};
+pub use resolve::{
+    dereference_did_url,
+    dereference_did_url_with_accept,
+    resolve_did,
+};
 pub use topic_reader::TopicReader;

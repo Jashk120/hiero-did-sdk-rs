@@ -39,12 +39,11 @@ pub use deactivate::{
     deactivate_did,
     deactivate_did_with_signer,
 };
-
-pub use update::RemoveService;
 pub use update::{
     AddService,
     AddVerificationMethod,
     DIDUpdateOperation,
+    RemoveService,
     RemoveVerificationMethod,
     UpdateDIDResult,
     VerificationMethodProperty,

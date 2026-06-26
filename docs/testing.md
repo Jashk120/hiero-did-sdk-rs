@@ -17,6 +17,7 @@ Notes:
 
 - Different integration tests may parse private keys with different constructors.
 - Keep key format consistent with the specific test suite.
+- For local-node tests, set `HEDERA_NETWORK=local` (or `local-node` / `localhost`).
 
 ## Run All Tests
 
@@ -47,6 +48,8 @@ cargo test -p hiero-did-signer --features vault
 cargo test -p hiero-did-client --test client_service_integration -- --nocapture
 cargo test -p hiero-did-hcs --test integration_hcs -- --nocapture
 cargo test -p hiero-did-registrar --test integration_test -- --nocapture
+cargo test -p hiero-did-resolver --test grpc_integration -- --nocapture
+cargo test -p hiero-did-resolver --test cbor_integration -- --nocapture
 cargo test -p hiero-did-anoncreds --test integration_anoncreds -- --nocapture
 cargo test -p hiero-did-sdk --test integration_anoncreds -- --nocapture
 ```
@@ -54,25 +57,32 @@ cargo test -p hiero-did-sdk --test integration_anoncreds -- --nocapture
 ## Integration Coverage (Current)
 
 - `hiero-did-client`
-- service initialization and network selection behavior.
+  - service initialization and network selection behavior.
 - `hiero-did-hcs`
-- topic create/update/delete, message publish/read, file publish/resolve, cache + service paths.
+  - topic create/update/delete, message publish/read, file publish/resolve, cache + service paths.
 - `hiero-did-registrar`
-- DID write flows around create, update (add/remove verification methods and services), deactivate, and signer-backed validation paths.
+  - DID write flows around create, update (add/remove verification methods and services), deactivate, and signer-backed validation paths. CSM prepare/submit flows.
+- `hiero-did-resolver`
+  - **gRPC integration** (`grpc_integration`): verifies `GrpcTopicReader` returns messages for created DIDs, resolves documents identically to `MirrorNodeClient`, works polymorphically as `&dyn TopicReader` through `DidDocumentBuilder::from_topic_reader`, and rejects invalid topic IDs.
+  - **CBOR integration** (`cbor_integration`): round-trip encode/decode of live-resolved documents, `represent()` with `Accept::DidCbor`, CBOR-vs-JSON size comparison, and deterministic encoding.
 - `hiero-did-signer`
-- local Ed25519 signing/verification plus feature-gated Vault response parsing and signer configuration tests.
+  - local Ed25519 signing/verification plus feature-gated Vault response parsing and signer configuration tests.
 - `hiero-did-anoncreds`
-- schema/cred-def/revocation registry operations on HCS.
+  - schema/cred-def/revocation registry operations on HCS.
 - `hiero-did-sdk`
-- re-export wiring and SDK-level anoncreds integration coverage.
+  - re-export wiring and SDK-level anoncreds integration coverage.
 
 ## Common Failures
 
 - `HEDERA_ACCOUNT_ID not set` / `HEDERA_PRIVATE_KEY not set`
-- `.env` missing or incomplete.
+  - `.env` missing or incomplete.
 - `Invalid private key`
-- Key format does not match parser used by that test.
+  - Key format does not match parser used by that test.
 - `grpc: Status { code: Unavailable, ... }`
-- Outbound network blocked or unstable.
+  - Outbound network blocked or unstable.
 - `DID document not found` during resolve flow
-- Mirror node lag; retry after a short wait.
+  - Mirror node lag; retry after a short wait.
+- `Timed out waiting for mirror node to index topic`
+  - Mirror polling exceeded timeout (default 30s). Increase timeout or check network.
+- `Message is not valid UTF-8`
+  - Topic contains non-UTF-8 payloads; verify the correct topic is being resolved.

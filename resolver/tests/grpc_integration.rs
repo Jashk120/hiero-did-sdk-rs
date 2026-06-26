@@ -121,10 +121,7 @@ async fn grpc_reader_returns_messages_for_created_did() {
         create_did(&ctx.hedera_client, ctx.network, None).await.expect("Failed to create DID");
 
     // Wait for mirror to index before gRPC subscription closes
-    ctx.mirror
-        .wait_for_mirror(&created.did.topic_id, 30)
-        .await
-        .expect("Mirror timed out");
+    ctx.mirror.wait_for_mirror(&created.did.topic_id, 30).await.expect("Mirror timed out");
 
     let messages = ctx
         .grpc_reader
@@ -146,11 +143,8 @@ async fn grpc_reader_resolves_same_document_as_mirror() {
         create_did(&ctx.hedera_client, ctx.network, None).await.expect("Failed to create DID");
 
     // Mirror resolution (ground truth)
-    let mirror_messages = ctx
-        .mirror
-        .wait_for_mirror(&created.did.topic_id, 30)
-        .await
-        .expect("Mirror timed out");
+    let mirror_messages =
+        ctx.mirror.wait_for_mirror(&created.did.topic_id, 30).await.expect("Mirror timed out");
 
     let mirror_resolution = DidDocumentBuilder::from(mirror_messages)
         .resolve(&created.did)

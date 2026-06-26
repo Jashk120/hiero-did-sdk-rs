@@ -139,7 +139,13 @@ See [`api-reference.md`](./api-reference.md) for full write-operation types and 
 
 ## Next Step: Resolve DID
 
-After creation, wait for mirror-node consistency and resolve with:
+After creation, wait for mirror-node consistency and resolve. The simplest approach uses the top-level convenience function:
 
-- `MirrorNodeClient::get_topic_messages`
-- `DidDocumentBuilder::from(messages).resolve(&did)`
+```rust
+use hiero_did_resolver::resolve_did;
+
+// Auto-selects MirrorNodeClient based on network in the DID string
+let resolution = resolve_did(&created.did.to_string(), None).await?;
+```
+
+For more control over transport and polling, see [`resolve-did.md`](./resolve-did.md).

@@ -1,14 +1,17 @@
+use hiero_did_core::did::Network;
 use hiero_did_core::{
     Accept,
     DIDError,
     DIDResolution,
     HederaDid,
     HederaDidUrl,
-    did::Network,
 };
 
 use crate::builder::DidDocumentBuilder;
-use crate::dereference::{DereferencedResource, dereference_did_with_accept};
+use crate::dereference::{
+    DereferencedResource,
+    dereference_did_with_accept,
+};
 use crate::mirror::MirrorNodeClient;
 use crate::topic_reader::TopicReader;
 
@@ -33,10 +36,7 @@ pub async fn resolve_did(
         r = &owned;
     }
 
-    DidDocumentBuilder::from_topic_reader(r, &hedera_did.topic_id)
-        .await?
-        .resolve(&hedera_did)
-        .await
+    DidDocumentBuilder::from_topic_reader(r, &hedera_did.topic_id).await?.resolve(&hedera_did).await
 }
 
 /// Dereference a `did:hedera` DID URL string into a [`DereferencedResource`].
@@ -66,9 +66,8 @@ pub async fn dereference_did_url_with_accept(
     reader: Option<&dyn TopicReader>,
     accept: Accept,
 ) -> Result<DereferencedResource, DIDError> {
-    let parsed: HederaDidUrl = did_url
-        .parse()
-        .map_err(|_| DIDError::InvalidDid(format!("Invalid DID URL: {did_url}")))?;
+    let parsed: HederaDidUrl =
+        did_url.parse().map_err(|_| DIDError::InvalidDid(format!("Invalid DID URL: {did_url}")))?;
 
     let r: &dyn TopicReader;
     let owned;
