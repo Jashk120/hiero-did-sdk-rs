@@ -6,30 +6,33 @@ Public API summary across workspace crates.
 
 Shared data model, DID types, errors, signer trait, and key utilities.
 
-- `did::Network`: `Mainnet | Testnet`
+- `did::Network`: `Mainnet | Testnet | Previewnet | Local`
 - `did::HederaDid`
-- `new(network, base58_key, topic_id)`
-- `to_did_string()`
-- `root_key_id()`
-- `Display` and `FromStr`
-- Constants: `DID_METHOD`, `DID_ROOT_KEY_ID`
+  - `new(network, base58_key, topic_id)`
+  - `to_did_string()`
+  - `root_key_id()`
+  - `Display` and `FromStr`
+  - Constants: `DID_METHOD`, `DID_ROOT_KEY_ID`
 - `did_url::HederaDidUrl`
-- Fields: `did`, `path`, `params`, `fragment`
-- `FromStr` parser for DID URL strings
+  - Fields: `did`, `path`, `params`, `fragment`
+  - `FromStr` parser for DID URL strings
 - `keys::KeysUtility`
-- `from_bytes(Vec<u8>)`
-- `from_base58(&str) -> Result<_, DIDError>`
-- `from_multibase(&str) -> Result<_, DIDError>`
-- `to_base58() -> String`
-- `to_multibase() -> String`
-- `to_bytes() -> &[u8]`
+  - `from_bytes(Vec<u8>)`
+  - `from_base58(&str) -> Result<_, DIDError>`
+  - `from_multibase(&str) -> Result<_, DIDError>`
+  - `to_base58() -> String`
+  - `to_multibase() -> String`
+  - `to_bytes() -> &[u8]`
 - DID document models
-- `DIDDocument`, `VerificationMethod`, `Service`, `DIDResolution`, related metadata/types
+  - `DIDDocument`, `VerificationMethod`, `VerificationMethodMultibase`, `Service`, `DIDResolution`, `DIDDocumentMetadata`, `DIDResolutionMetadata`, `KeyCapabilityMethod`
+- Representation negotiation
+  - `Accept`: `DidJson | DidLdJson | DidResolution | DidCbor`
+  - `RepresentedDocument`: `Json(serde_json::Value) | Cbor(Vec<u8>)`
 - `Signer` trait
-- `public_key_bytes() -> Vec<u8>`
-- `sign_bytes(&[u8]) -> Result<Vec<u8>, DIDError>`
+  - `public_key_bytes() -> Vec<u8>`
+  - `sign_bytes(&[u8]) -> Result<Vec<u8>, DIDError>`
 - `DIDError`
-- `InvalidDid`, `InvalidArgument`, `InvalidSignature`, `InvalidMultibase`, `NotFound`, `InternalError`, `SerializationError`
+  - `InvalidDid`, `InvalidArgument`, `InvalidSignature`, `InvalidMultibase`, `NotFound`, `InternalError`, `SerializationError`
 
 ## `hiero-did-method`
 
@@ -47,10 +50,10 @@ HCS envelope and DID event payload helpers.
 - `HcsMessage { timestamp, operation, did, event }`
 - Create: `DIDOwnerMessage`
 - Update:
-- `DIDAddVerificationMethodMessage`
-- `DIDRemoveVerificationMethodMessage`
-- `DIDAddServiceMessage`
-- `DIDRemoveServiceMessage`
+  - `DIDAddVerificationMethodMessage`
+  - `DIDRemoveVerificationMethodMessage`
+  - `DIDAddServiceMessage`
+  - `DIDRemoveServiceMessage`
 - Deactivate: `DIDDeactivateMessage`
 - Event models in `events.rs`
 
@@ -59,23 +62,23 @@ HCS envelope and DID event payload helpers.
 Ed25519 sign/verify helpers and optional external custody signing.
 
 - `InternalSigner`
-- `from_bytes(&[u8; 32]) -> Result<Self, DIDError>`
-- `from_raw_bytes(&[u8]) -> Result<Self, DIDError>`
-- `sign(&[u8]) -> Vec<u8>`
-- `verifying_key_bytes() -> Vec<u8>`
+  - `from_bytes(&[u8; 32]) -> Result<Self, DIDError>`
+  - `from_raw_bytes(&[u8]) -> Result<Self, DIDError>`
+  - `sign(&[u8]) -> Vec<u8>`
+  - `verifying_key_bytes() -> Vec<u8>`
 - `InternalVerifier`
-- `from_bytes(&[u8]) -> Result<Self, DIDError>`
-- `verify(message: &[u8], signature: &[u8]) -> Result<bool, DIDError>`
+  - `from_bytes(&[u8]) -> Result<Self, DIDError>`
+  - `verify(message: &[u8], signature: &[u8]) -> Result<bool, DIDError>`
 - With the `vault` feature:
-- `VaultSigner`
-- `new(VaultSignerConfig) -> Result<Self, DIDError>`
-- Implements `hiero_did_core::Signer`
-- `VaultSignerConfig`
-- `new(vault_url, auth, key_name) -> Self`
-- Defaults `mount_path` to `transit`
-- `VaultAuth`
-- `Token(String)`
-- `AppRole { role_id, secret_id }`
+  - `VaultSigner`
+    - `new(VaultSignerConfig) -> Result<Self, DIDError>`
+    - Implements `hiero_did_core::Signer`
+  - `VaultSignerConfig`
+    - `new(vault_url, auth, key_name) -> Self`
+    - Defaults `mount_path` to `transit`
+  - `VaultAuth`
+    - `Token(String)`
+    - `AppRole { role_id, secret_id }`
 
 ## `hiero-did-client`
 
@@ -87,39 +90,43 @@ Config-driven Hedera SDK client construction.
 - `HederaClientConfiguration { networks }`
 - `NetworkName { network_name: Option<String> }`
 - `HederaClientService`
-- `new(config) -> Result<Self, DIDError>`
-- `get_client(network_name: Option<&str>) -> Result<Client, DIDError>`
-- `with_client(network_name, operation) -> Result<T, DIDError>` (async)
+  - `new(config) -> Result<Self, DIDError>`
+  - `get_client(network_name: Option<&str>) -> Result<Client, DIDError>`
+  - `with_client(network_name, operation) -> Result<T, DIDError>` (async)
 
 ## `hiero-did-hcs`
 
 Hedera HCS helper layer and service facade.
 
 - `HcsClient`
-- `for_testnet()`, `for_mainnet()`
-- `set_operator(account_id, private_key)`
-- `for_testnet_with_operator(account_id, private_key)`
+  - `for_testnet()`, `for_mainnet()`
+  - `set_operator(account_id, private_key)`
+  - `for_testnet_with_operator(account_id, private_key) -> Result<Self, DIDError>`
+  - `for_local_node_with_operator(account_id, private_key) -> Result<Self, DIDError>`
+- `LocalSigner`
+  - `new(private_key: PrivateKey) -> Self`
+  - Implements `hiero_did_core::Signer` — wraps a local `PrivateKey` for topic signing
 - Topic operations (`HcsTopic`)
-- `create`, `create_with_memo`, `create_with_props`
-- `update`, `delete`, `delete_with_props`, `get_info`
-- `submit`
+  - `create`, `create_with_memo`, `create_with_props`
+  - `update`, `delete`, `delete_with_props`, `get_info`
+  - `submit`
 - Topic/message types
-- `CreateTopicProps`, `UpdateTopicProps`, `DeleteTopicProps`, `TopicInfo`
-- `CreateTopicProps.submit_key_signer: Option<Arc<dyn Signer>>`
-- `CreateTopicProps.admin_key_signer: Option<Arc<dyn Signer>>`
-- `UpdateTopicProps.admin_key_signer: Arc<dyn Signer>`
-- `GetTopicMessagesProps`, `TopicMessageData`, `SubmitMessageResult`
+  - `CreateTopicProps`, `UpdateTopicProps`, `DeleteTopicProps`, `TopicInfo`
+  - `CreateTopicProps.submit_key_signer: Option<Arc<dyn Signer>>`
+  - `CreateTopicProps.admin_key_signer: Option<Arc<dyn Signer>>`
+  - `UpdateTopicProps.admin_key_signer: Arc<dyn Signer>`
+  - `GetTopicMessagesProps`, `TopicMessageData`, `SubmitMessageResult`
 - `HcsMessage::submit`, `HcsMessage::get_topic_messages`, `HcsMessage::get_topic_messages_with_cache`
 - File operations
-- `SubmitFileProps`, `ResolveFileProps`
-- `HcsFileService::submit_file`, `HcsFileService::resolve_file`
+  - `SubmitFileProps`, `ResolveFileProps`
+  - `HcsFileService::submit_file`, `HcsFileService::resolve_file`
 - Service facade (`HederaHcsService`)
-- `create_topic`, `create_topic_with_memo`, `create_topic_with_props`
-- `update_topic`, `delete_topic`, `delete_topic_with_props`, `get_topic_info`
-- `submit_message`, `get_topic_messages`, `submit_file`, `resolve_file`
+  - `create_topic`, `create_topic_with_memo`, `create_topic_with_props`
+  - `update_topic`, `delete_topic`, `delete_topic_with_props`, `get_topic_info`
+  - `submit_message`, `get_topic_messages`, `submit_file`, `resolve_file`
 - Cache
-- `HcsCacheService::new(max_size)`
-- `HcsCacheService::with_defaults()`
+  - `HcsCacheService::new(max_size)`
+  - `HcsCacheService::with_defaults()`
 
 ## `hiero-did-registrar`
 
@@ -135,38 +142,68 @@ High-level DID write operations.
 - `CreateDIDWithSignerResult { did, public_key_bytes }`
 - `UpdateDIDResult { did, operations_applied }`
 - `DeactivateDIDResult { did, did_document }`
+- `DeactivatedDIDDocument` — deactivated document wrapper
 - Update helper types
-- `DIDUpdateOperation`
-- `AddVerificationMethod`, `RemoveVerificationMethod`, `AddService`, `RemoveService`
-- `VerificationMethodProperty`
+  - `DIDUpdateOperation`
+    - `AddVerificationMethod`, `RemoveVerificationMethod`, `AddService`, `RemoveService`
+  - `AddVerificationMethod`, `RemoveVerificationMethod`, `AddService`, `RemoveService` — struct variants
+  - `VerificationMethodProperty`
+- CSM (client-side message signing)
+  - `prepare_create_did_csm`, `prepare_create_did_csm_with_options`
+  - `prepare_update_did_csm`, `prepare_update_did_csm_with_options`
+  - `prepare_deactivate_did_csm`, `prepare_deactivate_did_csm_with_options`
+  - `submit_create_did_csm`, `submit_update_did_csm`, `submit_deactivate_did_csm`
+  - `CsmSigningRequest`, `CsmSubmitRequest`, `CsmSubmitResult`
+  - `CsmBatchSigningRequest`, `CsmBatchSubmitRequest`, `CsmBatchSubmitResult`
+  - `CsmPrepareOptions`, `CsmMessageState`, `CsmOperationState`, `CsmSignature`
+  - `CSM_STATE_VERSION`, `PAUSE_FOR_SIGNATURE_LABEL`, `PAUSE_BEFORE_PUBLISH_LABEL`
 
 ## `hiero-did-resolver`
 
-Mirror-node retrieval, DID resolution, and DID URL dereference.
+Topic-reader abstraction, DID resolution, representation negotiation, and DID URL dereference.
 
-- `MirrorNodeClient`
-- `for_testnet()`
-- `for_mainnet()`
-- `get_topic_messages(topic_id: &str) -> Result<Vec<String>, DIDError>`
+- `TopicReader` trait (async)
+  - `get_topic_messages(topic_id: &str) -> Result<Vec<String>, DIDError>`
+- `MirrorNodeClient` (implements `TopicReader`)
+  - `for_testnet()`, `for_mainnet()`, `for_local()`
+  - `from_env()` — auto-selects from `MIRROR_BASE_URL` or `HEDERA_NETWORK` env vars
+  - `get_topic_messages(topic_id: &str) -> Result<Vec<String>, DIDError>` — paginated REST fetch
+  - `wait_for_mirror(topic_id, timeout_secs) -> Result<Vec<String>, DIDError>` — poll until ≥1 message
+  - `wait_for_mirror_stable(topic_id, stable_window_ms, timeout_secs) -> Result<Vec<String>, DIDError>` — poll until message count stabilizes
+- `GrpcTopicReader` (implements `TopicReader`)
+  - `for_testnet()`, `for_mainnet()`
+  - `for_testnet_with_client(HcsClient)`, `for_mainnet_with_client(HcsClient)`
+  - `for_local_node_with_client(HcsClient)`
+- `HcsTopicReader` (implements `TopicReader`)
+  - `new(service: Arc<HederaHcsService>, network_name: Option<String>)`
+  - `for_testnet(service)`, `for_mainnet(service)`
 - `DidDocumentBuilder`
-- `from(messages: Vec<String>) -> DidDocumentBuilder`
-- `resolve(&self, did: &HederaDid) -> Result<DIDResolution, DIDError>` (async)
+  - `from(messages: Vec<String>) -> DidDocumentBuilder`
+  - `from_topic_reader(reader: &dyn TopicReader, topic_id: &str) -> Result<DidDocumentBuilder, DIDError>` (async)
+  - `resolve(&self, did: &HederaDid) -> Result<DIDResolution, DIDError>` (async)
+- Top-level convenience functions
+  - `resolve_did(did: &str, reader: Option<&dyn TopicReader>) -> Result<DIDResolution, DIDError>` (async)
+  - `dereference_did_url(did_url: &str, reader: Option<&dyn TopicReader>) -> Result<DereferencedResource, DIDError>` (async)
+  - `dereference_did_url_with_accept(did_url, reader, accept) -> Result<DereferencedResource, DIDError>` (async)
+- `represent(resolution: &DIDResolution, accept: Accept) -> Result<RepresentedDocument, DIDError>`
 - DID URL dereference
-- `dereference::DereferencedResource`
-- `Document(DIDDocument)`
-- `VerificationMethod(VerificationMethod)`
-- `Service(Service)`
-- `dereference::dereference_did(did_url: &HederaDidUrl, messages: Vec<String>) -> Result<DereferencedResource, DIDError>` (async)
+  - `dereference::DereferencedResource`
+    - `Document(DIDDocument)`
+    - `VerificationMethod(VerificationMethod)`
+    - `Service(Service)`
+    - `Represented(RepresentedDocument)`
+  - `dereference::dereference_did(did_url, messages) -> Result<DereferencedResource, DIDError>` (async)
+  - `dereference::dereference_did_with_accept(did_url, messages, accept) -> Result<DereferencedResource, DIDError>` (async)
 
 ## `hiero-did-anoncreds`
 
 AnonCreds registry on top of HCS.
 
 - `HederaAnonCredsRegistry`
-- `register_schema`, `get_schema`
-- `register_credential_definition`, `get_credential_definition`
-- `register_revocation_registry_definition`, `get_revocation_registry_definition`
-- `register_revocation_status_list`, `get_revocation_status_list`
+  - `register_schema`, `get_schema`
+  - `register_credential_definition`, `get_credential_definition`
+  - `register_revocation_registry_definition`, `get_revocation_registry_definition`
+  - `register_revocation_status_list`, `get_revocation_status_list`
 
 ## `hiero-did-sdk`
 
@@ -178,6 +215,7 @@ Umbrella crate re-exports:
 - `hiero_did_sdk::signer`
 - `hiero_did_sdk::client`
 - `hiero_did_sdk::hcs`
+- `hiero_did_sdk::lifecycle`
 - `hiero_did_sdk::registrar`
 - `hiero_did_sdk::resolver`
 - `hiero_did_sdk::anoncreds`

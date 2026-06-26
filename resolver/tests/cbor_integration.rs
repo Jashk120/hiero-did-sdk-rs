@@ -1,12 +1,26 @@
 use std::env;
 
-use dotenvy::{from_filename, from_filename_override};
-use hiero_did_client::{
-    HederaClientConfiguration, HederaClientService, HederaNetwork, NetworkConfig,
+use dotenvy::{
+    from_filename,
+    from_filename_override,
 };
-use hiero_did_core::{Accept, DIDDocument, did::Network};
+use hiero_did_client::{
+    HederaClientConfiguration,
+    HederaClientService,
+    HederaNetwork,
+    NetworkConfig,
+};
+use hiero_did_core::did::Network;
+use hiero_did_core::{
+    Accept,
+    DIDDocument,
+};
 use hiero_did_registrar::create::create_did;
-use hiero_did_resolver::{DidDocumentBuilder, MirrorNodeClient, representation::represent};
+use hiero_did_resolver::representation::represent;
+use hiero_did_resolver::{
+    DidDocumentBuilder,
+    MirrorNodeClient,
+};
 
 fn setup_env() {
     let _ = from_filename_override(".env.local");

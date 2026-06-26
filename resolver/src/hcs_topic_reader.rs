@@ -3,7 +3,10 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use hiero_did_core::DIDError;
-use hiero_did_hcs::{GetTopicMessagesProps, HederaHcsService};
+use hiero_did_hcs::{
+    GetTopicMessagesProps,
+    HederaHcsService,
+};
 
 use crate::topic_reader::TopicReader;
 
@@ -73,10 +76,7 @@ impl TopicReader for HcsTopicReader {
             max_idle_seconds: None,
         };
 
-        let messages = self
-            .service
-            .get_topic_messages(self.network_name.as_deref(), props)
-            .await?;
+        let messages = self.service.get_topic_messages(self.network_name.as_deref(), props).await?;
 
         messages
             .into_iter()
