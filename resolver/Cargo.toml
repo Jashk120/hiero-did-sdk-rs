@@ -22,6 +22,11 @@ tokio = { workspace = true }
 thiserror = { workspace = true }
 ciborium = "0.2"
 async-trait = "0.1"
+time = { workspace = true }
 
 [dev-dependencies]
 dotenvy = "0.15.7"
+hiero-did-client = { version = "0.1.0", path = "../client" }
+hiero-did-registrar = { version = "0.1.0", path = "../registrar" }
+serial_test = "3"
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

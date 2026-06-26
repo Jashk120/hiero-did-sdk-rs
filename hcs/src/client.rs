@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::str::FromStr;
+
 use hiero_did_core::{
     DIDError,
     Signer,
@@ -58,6 +61,34 @@ impl HcsClient {
         private_key: PrivateKey,
     ) -> Result<Self, DIDError> {
         let client = Client::for_testnet();
+        client.set_operator(account_id, private_key);
+        Ok(Self { inner: client })
+    }
+
+    /// Build a client pointed at the local Hedera node (hedera-local-node).
+    ///
+    /// Node address defaults to `127.0.0.1:35211` and mirror gRPC to
+    /// `127.0.0.1:38081`, overridable via `HEDERA_NODE_ADDRESS` /
+    /// `HEDERA_MIRROR_NODE_ADDRESS` env vars — the same as
+    /// `HederaClientService` uses for `HederaNetwork::LocalNode`.
+    pub fn for_local_node_with_operator(
+        account_id: AccountId,
+        private_key: PrivateKey,
+    ) -> Result<Self, DIDError> {
+        let node_addr = std::env::var("HEDERA_NODE_ADDRESS")
+            .unwrap_or_else(|_| "127.0.0.1:35211".to_string());
+        let mirror_addr = std::env::var("HEDERA_MIRROR_NODE_ADDRESS")
+            .unwrap_or_else(|_| "127.0.0.1:38081".to_string());
+
+        let mut nodes = HashMap::new();
+        nodes.insert(
+            node_addr,
+            AccountId::from_str("0.0.3")
+                .map_err(|e| DIDError::InvalidArgument(format!("Invalid node account: {e}")))?,
+        );
+        let client = Client::for_network(nodes)
+            .map_err(|e| DIDError::InternalError(format!("Failed to build local client: {e}")))?;
+        client.set_mirror_network(vec![mirror_addr]);
         client.set_operator(account_id, private_key);
         Ok(Self { inner: client })
     }

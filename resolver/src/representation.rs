@@ -104,4 +104,88 @@ mod tests {
             _ => panic!("expected CBOR"),
         }
     }
+
+    #[test]
+    fn cbor_round_trip_minimal_document() {
+        let doc = fixture_resolution().did_document;
+
+        let mut encoded = Vec::new();
+        ciborium::ser::into_writer(&doc, &mut encoded).expect("CBOR encode failed");
+
+        let decoded: DIDDocument =
+            ciborium::de::from_reader(encoded.as_slice()).expect("CBOR decode failed");
+
+        assert_eq!(decoded.id, doc.id);
+        assert_eq!(decoded.controller, doc.controller);
+        assert_eq!(decoded.context, doc.context);
+        assert_eq!(decoded.verification_method, doc.verification_method);
+        assert_eq!(decoded.service, doc.service);
+    }
+
+    #[test]
+    fn cbor_round_trip_with_verification_method_and_service() {
+        use hiero_did_core::{Service, VerificationMethod, VerificationMethodMultibase};
+
+        let doc = DIDDocument {
+            context: vec!["https://www.w3.org/ns/did/v1".to_string()],
+            id: "did:hedera:testnet:zAbc_0.0.99".to_string(),
+            controller: "did:hedera:testnet:zAbc_0.0.99".to_string(),
+            verification_method: vec![VerificationMethod::Multibase(VerificationMethodMultibase {
+                id: "did:hedera:testnet:zAbc_0.0.99#did-root-key".to_string(),
+                key_type: "Ed25519VerificationKey2020".to_string(),
+                controller: "did:hedera:testnet:zAbc_0.0.99".to_string(),
+                public_key_multibase: "zFakeMultibaseKey123".to_string(),
+            })],
+            service: Some(vec![Service {
+                id: "did:hedera:testnet:zAbc_0.0.99#vcs".to_string(),
+                service_type: "VerifiableCredentialService".to_string(),
+                service_endpoint: "https://example.com/vc".to_string(),
+            }]),
+            authentication: None,
+            assertion_method: None,
+            key_agreement: None,
+            capability_invocation: None,
+            capability_delegation: None,
+        };
+
+        let mut encoded = Vec::new();
+        ciborium::ser::into_writer(&doc, &mut encoded).expect("CBOR encode failed");
+
+        let decoded: DIDDocument =
+            ciborium::de::from_reader(encoded.as_slice()).expect("CBOR decode failed");
+
+        assert_eq!(decoded.id, doc.id);
+        assert_eq!(decoded.verification_method, doc.verification_method);
+        assert_eq!(decoded.service, doc.service);
+    }
+
+    #[test]
+    fn cbor_encode_is_smaller_than_json() {
+        let doc = fixture_resolution().did_document;
+
+        let mut cbor_bytes = Vec::new();
+        ciborium::ser::into_writer(&doc, &mut cbor_bytes).expect("CBOR encode failed");
+
+        let json_bytes = serde_json::to_vec(&doc).expect("JSON encode failed");
+
+        assert!(
+            cbor_bytes.len() < json_bytes.len(),
+            "CBOR ({} bytes) should be smaller than JSON ({} bytes)",
+            cbor_bytes.len(),
+            json_bytes.len()
+        );
+    }
+
+    #[test]
+    fn cbor_deterministic_same_input_same_output() {
+        let doc = fixture_resolution().did_document;
+
+        let mut first = Vec::new();
+        ciborium::ser::into_writer(&doc, &mut first).expect("encode 1 failed");
+
+        let mut second = Vec::new();
+        ciborium::ser::into_writer(&doc, &mut second).expect("encode 2 failed");
+
+        assert_eq!(first, second, "CBOR encoding must be deterministic");
+    }
 }

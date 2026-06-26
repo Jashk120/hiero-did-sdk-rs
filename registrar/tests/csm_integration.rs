@@ -247,11 +247,19 @@ async fn csm_update_multi_operation_batch() {
     assert_eq!(batch_result.operations_applied, 3);
 
     let resolution = resolve_until(&mirror, &did, |r| {
-        r.did_document.verification_method.iter().any(|vm| vm.id() == vm_id)
-            && r.did_document
-                .service
-                .as_ref()
-                .map_or(false, |svcs| svcs.iter().any(|s| s.id == added_service_id))
+        let has_vm = r.did_document.verification_method.iter().any(|vm| vm.id() == vm_id);
+        let has_added_svc = r
+            .did_document
+            .service
+            .as_ref()
+            .map_or(false, |svcs| svcs.iter().any(|s| s.id == added_service_id));
+        let removed_svc_gone = r
+            .did_document
+            .service
+            .as_ref()
+            .map_or(true, |svcs| !svcs.iter().any(|s| s.id == removable_service_id));
+
+        has_vm && has_added_svc && removed_svc_gone
     })
     .await;
 

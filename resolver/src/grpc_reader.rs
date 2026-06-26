@@ -7,6 +7,7 @@ use hiero_did_hcs::{
     HcsClient,
     HcsMessage,
 };
+use time::OffsetDateTime;
 
 use crate::topic_reader::TopicReader;
 
@@ -29,6 +30,32 @@ impl GrpcTopicReader {
     pub fn for_mainnet() -> Self {
         Self { client: HcsClient::for_mainnet() }
     }
+
+    /// Create a reader from an already-configured [`HcsClient`] pointed at testnet.
+    ///
+    /// Use this when you need to supply an operator (account id + key) for
+    /// access-controlled topics or authenticated gRPC subscriptions.
+    pub fn for_testnet_with_client(client: HcsClient) -> Self {
+        Self { client }
+    }
+
+    /// Create a reader from an already-configured [`HcsClient`] pointed at mainnet.
+    ///
+    /// Use this when you need to supply an operator (account id + key) for
+    /// access-controlled topics or authenticated gRPC subscriptions.
+    pub fn for_mainnet_with_client(client: HcsClient) -> Self {
+        Self { client }
+    }
+
+    /// Create a reader from an already-configured [`HcsClient`] pointed at a
+    /// local Hedera node (hedera-local-node).
+    ///
+    /// Use [`HcsClient::for_local_node_with_operator`] to build the client, or
+    /// supply any pre-configured client whose mirror network is set to
+    /// `127.0.0.1:38081` (or `HEDERA_MIRROR_NODE_ADDRESS`).
+    pub fn for_local_node_with_client(client: HcsClient) -> Self {
+        Self { client }
+    }
 }
 
 #[async_trait]
@@ -39,7 +66,12 @@ impl TopicReader for GrpcTopicReader {
 
         let props = GetTopicMessagesProps {
             topic_id,
-            from_time: None,
+            // Setting from_time to UNIX_EPOCH tells the gRPC mirror to stream
+            // from the very first message on this topic.  Without it,
+            // consensus_start_time is omitted from the proto request and the
+            // mirror defaults to "start from now", returning zero historical
+            // messages before the idle timeout fires.
+            from_time: Some(OffsetDateTime::UNIX_EPOCH),
             to_time: None,
             limit: None,
             max_idle_seconds: None,

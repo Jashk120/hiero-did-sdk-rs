@@ -19,10 +19,20 @@ use crate::topic_reader::TopicReader;
 /// # Example
 /// ```rust,no_run
 /// use std::sync::Arc;
-/// use hiero_did_hcs::{HederaClientService, HederaHcsService};
+/// use hiero_did_client::{
+///     HederaClientConfiguration, HederaClientService, HederaNetwork, NetworkConfig,
+/// };
+/// use hiero_did_hcs::HederaHcsService;
 /// use hiero_did_resolver::{HcsTopicReader, TopicReader};
 ///
-/// let client_service = HederaClientService::for_testnet();
+/// let config = HederaClientConfiguration {
+///     networks: vec![NetworkConfig {
+///         network: HederaNetwork::Testnet,
+///         operator_id: "0.0.123".into(),
+///         operator_key: "302e020100300506032b6570042204208a04297dcce5e5541655e81d8d9f4dc67d02341feeb3efcf6b29d4d5e9ec347f".into(),
+///     }],
+/// };
+/// let client_service = HederaClientService::new(config).unwrap();
 /// let hcs_service = Arc::new(HederaHcsService::new(client_service, None));
 /// let reader = HcsTopicReader::new(hcs_service, Some("testnet".to_string()));
 /// ```

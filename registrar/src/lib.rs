@@ -36,9 +36,10 @@ pub use csm::{
 pub use deactivate::{
     DeactivateDIDResult,
     DeactivatedDIDDocument,
+    deactivate_did,
     deactivate_did_with_signer,
 };
-// HcsSignable was removed during the update.rs refactor
+
 pub use update::RemoveService;
 pub use update::{
     AddService,
@@ -47,5 +48,6 @@ pub use update::{
     RemoveVerificationMethod,
     UpdateDIDResult,
     VerificationMethodProperty,
+    update_did,
     update_did_with_signer,
 };
