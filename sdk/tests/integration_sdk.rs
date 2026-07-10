@@ -220,17 +220,16 @@ async fn update_did_add_then_remove_service() {
         )
         .await
         .expect("remove service failed");
-
-    mirror
-        .wait_for_mirror_stable(&did.topic_id, 1500, 30)
-        .await
-        .expect("Mirror wait post-remove failed");
-
     let resolved = ctx
         .sdk
-        .resolve_did(&did.to_string(), None)
+        .resolve_did_until(&did.to_string(), 30, |r| {
+            r.did_document
+                .service
+                .as_ref()
+                .map_or(true, |s| s.iter().all(|x| x.id != svc_id))
+        })
         .await
-        .expect("resolve failed");
+        .expect("service removal did not converge within timeout");
     let services = resolved.did_document.service.unwrap_or_default();
     assert!(
         services.iter().all(|s| s.id != svc_id),
