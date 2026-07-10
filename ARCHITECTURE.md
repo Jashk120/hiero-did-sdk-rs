@@ -6,7 +6,7 @@ This repository is a Rust workspace for `did:hedera` operations on Hiero/Hedera.
 
 - DID write operations: create, update, deactivate.
 - Client-side message signing (CSM) prepare/submit flows for DID writes.
-- DID resolution from HCS topic history through mirror-node reads.
+- DID resolution from HCS topic history through pluggable transport backends (REST mirror-node, gRPC mirror subscription, cached HCS service).
 - DID URL dereference for resolved documents, verification methods, and services.
 - Hedera client configuration and HCS topic/message/file operations.
 - Shared DID/domain primitives, message models, signing boundaries, and lifecycle orchestration.
@@ -16,7 +16,7 @@ This repository is a Rust workspace for `did:hedera` operations on Hiero/Hedera.
 
 Toolchain baseline:
 
-- The workspace is pinned to Rust `nightly` in `rust-toolchain.toml`.
+- The workspace is pinned to Rust `stable` in `rust-toolchain.toml`.
 - `rustfmt` and `clippy` components are included by the toolchain file.
 
 ## 2. Workspace Topology
@@ -41,23 +41,24 @@ Runtime dependency direction:
 
 ```text
 hiero-did-sdk
-  |-- hiero-did-anoncreds --> hiero-did-hcs --> hiero-did-client --> hiero-did-core
-  |                         |                \------------------> hiero-did-core
-  |                         \-----------------------------------> hiero-did-core
-  |-- hiero-did-registrar --> hiero-did-hcs
-  |                         --> hiero-did-messages --> hiero-did-core
-  |                         --> hiero-did-signer ----> hiero-did-core
-  |                         --> hiero-did-lifecycle -> hiero-did-core
-  |                         --> hiero-did-core
-  |-- hiero-did-resolver ---> hiero-did-messages
-  |                         --> hiero-did-signer
-  |                         --> hiero-did-core
-  |-- hiero-did-lifecycle --> hiero-did-core
-  |-- hiero-did-method ----> hiero-did-core
-  |-- hiero-did-client ----> hiero-did-core
-  |-- hiero-did-hcs -------> hiero-did-core
-  |-- hiero-did-messages --> hiero-did-core
-  |-- hiero-did-signer ---> hiero-did-core
+  |-- hiero-did-anoncreds ---> hiero-did-hcs --> hiero-did-client --> hiero-did-core
+  |                           |                \------------------> hiero-did-core
+  |                           \-----------------------------------> hiero-did-core
+  |-- hiero-did-registrar ----> hiero-did-hcs
+  |                           --> hiero-did-messages --> hiero-did-core
+  |                           --> hiero-did-signer ----> hiero-did-core
+  |                           --> hiero-did-lifecycle -> hiero-did-core
+  |                           --> hiero-did-core
+  |-- hiero-did-resolver -----> hiero-did-hcs (for HcsTopicReader / GrpcTopicReader)
+  |                           --> hiero-did-messages
+  |                           --> hiero-did-signer
+  |                           --> hiero-did-core
+  |-- hiero-did-lifecycle ----> hiero-did-core
+  |-- hiero-did-method -------> hiero-did-core
+  |-- hiero-did-client -------> hiero-did-core
+  |-- hiero-did-hcs ----------> hiero-did-core
+  |-- hiero-did-messages -----> hiero-did-core
+  |-- hiero-did-signer -------> hiero-did-core
   \-- hiero-did-core
 
 hiero-did-utils: test/support helpers; not re-exported by `hiero-did-sdk`.
@@ -70,7 +71,7 @@ Important boundaries:
 - `messages` owns serializable DID operation envelopes and event payloads, but does not publish to HCS.
 - `hcs` owns Hedera Consensus Service primitives and service-level wrappers, but does not know DID event semantics.
 - `registrar` owns DID write semantics and uses `hcs`, `messages`, and signer abstractions to publish DID operation events.
-- `resolver` owns DID read semantics and folds message history into DID documents.
+- `resolver` owns DID read semantics, provides pluggable transport via `TopicReader`, and folds message history into DID documents.
 - `anoncreds` is a registry layer over `hcs`, not a dependency of DID create/update/resolve flows.
 - `lifecycle` is generic orchestration over lifecycle-compatible messages; the registrar uses the lifecycle crate's `LifecycleRunner` to orchestrate all CSM workflows (create, update, deactivate).
 
@@ -123,6 +124,8 @@ Configurable network-aware Hedera client factory:
 
 ### 3.6 `hiero-did-hcs`
 HCS primitives and service facade:
+- `HcsClient`: low-level Hedera SDK client wrapper with `for_testnet`, `for_mainnet`, `for_testnet_with_operator`, and `for_local_node_with_operator` constructors.
+- `LocalSigner`: `Signer` backed by a local `PrivateKey`, used for access-controlled topic signing.
 - `HcsTopic`: create/update/delete/info/submit topic operations.
 - `HcsMessage`: submit and fetch topic messages with mirror-node subscription support.
 - `HcsFileService`: chunked and compressed (zstd) payload publish/resolve over HCS-1 style messaging.
@@ -148,14 +151,19 @@ Generic linear lifecycle runner:
 - `RunnerState` / `RunnerStatus`: tracking progress across async boundaries.
 
 ### 3.9 `hiero-did-resolver`
-Resolution orchestration:
-- `TopicReader`: abstraction over transport mechanisms for fetching DID message history.
-- `MirrorNodeClient`: fetches topic messages from mirror-node REST APIs.
-- `GrpcTopicReader`: fetches topic messages directly from Hedera consensus nodes via gRPC.
-- `DidDocumentBuilder`: folds validated events into a DID document.
-- `dereference_did`: resolves DID URLs against document resources (verification systems, services).
-- `DereferencedResource`: represents documents, verification methods, or services.
-- `representation`: handles content-type negotiation (e.g., `application/did+json`, `application/did+ld+json`, `application/did+cbor`) for output documents.
+Resolution orchestration with pluggable transport:
+- `TopicReader` trait: async abstraction over how topic messages are fetched, decoupling resolution from transport.
+- `MirrorNodeClient`: fetches topic messages from mirror-node REST APIs, with pagination and polling helpers (`wait_for_mirror`, `wait_for_mirror_stable`). Supports testnet, mainnet, local-node, and env-driven auto-selection.
+- `GrpcTopicReader`: fetches topic messages via gRPC mirror subscription (through `hiero-did-hcs::HcsMessage`). Supports testnet, mainnet, and local-node with operator.
+- `HcsTopicReader`: fetches topic messages through `HederaHcsService`, reusing its in-process moka cache. Preferred when an `HederaHcsService` is already in scope.
+- `DidDocumentBuilder`: folds validated events into a DID document. Accepts raw messages or a `&dyn TopicReader`.
+- Top-level convenience functions:
+  - `resolve_did(did, reader)`: parses a DID string, auto-selects a reader if none supplied, and returns `DIDResolution`.
+  - `dereference_did_url(did_url, reader)`: parses a DID URL string, fetches messages, and returns `DereferencedResource`.
+  - `dereference_did_url_with_accept(did_url, reader, accept)`: same with explicit content format.
+- `dereference_did` / `dereference_did_with_accept`: lower-level dereference from pre-fetched messages.
+- `DereferencedResource`: `Document`, `VerificationMethod`, `Service`, or `Represented(RepresentedDocument)`.
+- `representation::represent`: renders a `DIDResolution` into a requested `Accept` format (JSON, JSON-LD, full resolution envelope, CBOR).
 
 ### 3.10 `hiero-did-anoncreds`
 AnonCreds registry layer on top of `HederaHcsService`:
@@ -195,10 +203,18 @@ Leverages the `LifecycleRunner` pattern:
 3. **Submit**: SDK resumes the lifecycle with the signature, validates, and submits to HCS.
 
 ### 4.4 Resolve DID
-1. Fetch topic message history via a `TopicReader` (e.g., `MirrorNodeClient` or `GrpcTopicReader`).
-2. Filter and validate events (owner -> updates -> deactivation).
-3. Fold events into final `DIDDocument`.
-4. (Optional) represent document via requested `Accept` format (JSON, JSON-LD, CBOR, etc).
+1. Select a `TopicReader` (REST `MirrorNodeClient`, gRPC `GrpcTopicReader`, or cached `HcsTopicReader`). The `resolve_did` convenience function auto-selects based on the network in the DID string.
+2. Fetch topic message history via the selected reader.
+3. Filter and validate events (owner -> updates -> deactivation), verifying Ed25519 signatures.
+4. Fold events into final `DIDDocument`.
+5. (Optional) represent document via requested `Accept` format (JSON, JSON-LD, CBOR, full resolution envelope).
+
+### 4.5 Dereference DID URL
+1. Parse DID URL into `HederaDidUrl` (did + optional path/params/fragment).
+2. Resolve the underlying DID document (same as 4.4).
+3. If no fragment: return whole document (or represented form if non-default Accept).
+4. If fragment present: match against `verificationMethod[].id` and `service[].id`.
+5. Return matched resource or `NotFound` error.
 
 ## 5. Error Model
 Domain, network, and signing failures map to `hiero_did_core::DIDError`:
@@ -210,9 +226,14 @@ Domain, network, and signing failures map to `hiero_did_core::DIDError`:
 - `SerializationError`: JSON/CBOR failures.
 
 ## 6. Testing Strategy
-- Unit tests: located within each crate.
-- Integration tests: dedicated files in `tests/` directories using live Hedera or mirror-node mocks where possible.
-- Coverage includes CSM flows, HCS file chunking, and AnonCreds registry logic.
+- Unit tests: located within each crate (e.g., `builder.rs`, `representation.rs`, `dereference.rs`).
+- Integration tests: dedicated files in `tests/` directories using live Hedera testnet or local-node.
+  - `hiero-did-client`: service initialization, network selection.
+  - `hiero-did-hcs`: topic CRUD, message publish/read, file publish/resolve, cache paths.
+  - `hiero-did-registrar`: DID create/update/deactivate flows, signer-backed validation, CSM prepare/submit.
+  - `hiero-did-resolver`: gRPC reader parity with mirror-node (`grpc_integration`), CBOR round-trip and representation (`cbor_integration`).
+  - `hiero-did-anoncreds`: schema/cred-def/revocation registry operations.
+  - `hiero-did-sdk`: umbrella re-export wiring and SDK-level anoncreds integration.
 
 ## 7. Current Boundaries
 - Vault signing: uses synchronous trait bounds via `reqwest::blocking`.

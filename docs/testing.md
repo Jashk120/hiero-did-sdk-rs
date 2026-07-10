@@ -4,7 +4,7 @@ This workspace has both local checks and networked integration tests.
 
 ## Prerequisites
 
-- Rust + Cargo installed (workspace is pinned to `nightly` via `rust-toolchain.toml`).
+- Rust + Cargo installed (workspace is pinned to `stable` via `rust-toolchain.toml`).
 - For integration tests, set `.env.local` in repo root (preferred). `.env` is also supported as fallback.
 
 ```env
