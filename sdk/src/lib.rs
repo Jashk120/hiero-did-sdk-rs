@@ -8,3 +8,6 @@ pub use hiero_did_method as method;
 pub use hiero_did_registrar as registrar;
 pub use hiero_did_resolver as resolver;
 pub use hiero_did_signer as signer;
+
+mod sdk;
+pub use sdk::HieroDidSdk;

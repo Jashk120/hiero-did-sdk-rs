@@ -205,33 +205,32 @@ impl DidDocumentBuilder {
                 .insert(root_key_id.clone(), KeyCapabilityMethod::Reference(root_key_id.clone()));
         }
 
-        let did_document = DIDDocument {
-            context: vec!["https://www.w3.org/ns/did/v1".to_string()],
-            id: did_string.clone(),
-            controller: controller.unwrap_or_else(|| did_string.clone()),
-            verification_method: verification_methods.into_values().collect(),
-            service: if services.is_empty() {
-                None
-            } else {
-                Some(services.into_values().collect())
-            },
-            authentication: Some(authentication.into_values().collect()),
-            assertion_method: Some(assertion_method.into_values().collect()),
-            key_agreement: if key_agreement.is_empty() {
-                None
-            } else {
-                Some(key_agreement.into_values().collect())
-            },
-            capability_invocation: if capability_invocation.is_empty() {
-                None
-            } else {
-                Some(capability_invocation.into_values().collect())
-            },
-            capability_delegation: if capability_delegation.is_empty() {
-                None
-            } else {
-                Some(capability_delegation.into_values().collect())
-            },
+        let did_document = if deactivated {
+            DIDDocument {
+                context: vec!["https://www.w3.org/ns/did/v1".to_string()],
+                id: did_string.clone(),
+                controller: controller.unwrap_or_else(|| did_string.clone()),
+                verification_method: vec![],
+                service: None,
+                authentication: None,
+                assertion_method: None,
+                key_agreement: None,
+                capability_invocation: None,
+                capability_delegation: None,
+            }
+        } else {
+            DIDDocument {
+                context: vec!["https://www.w3.org/ns/did/v1".to_string()],
+                id: did_string.clone(),
+                controller: controller.unwrap_or_else(|| did_string.clone()),
+                verification_method: verification_methods.into_values().collect(),
+                service: if services.is_empty() { None } else { Some(services.into_values().collect()) },
+                authentication: Some(authentication.into_values().collect()),
+                assertion_method: Some(assertion_method.into_values().collect()),
+                key_agreement: if key_agreement.is_empty() { None } else { Some(key_agreement.into_values().collect()) },
+                capability_invocation: if capability_invocation.is_empty() { None } else { Some(capability_invocation.into_values().collect()) },
+                capability_delegation: if capability_delegation.is_empty() { None } else { Some(capability_delegation.into_values().collect()) },
+            }
         };
 
         Ok(DIDResolution {

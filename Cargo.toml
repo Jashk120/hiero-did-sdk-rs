@@ -10,7 +10,6 @@ members = [
     "sdk",
     "client",
     "anoncreds",
-    "scratch",
     "lifecycle", 
     "utils",
 ]

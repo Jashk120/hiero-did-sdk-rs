@@ -14,6 +14,7 @@ hiero-did-core = { version = "0.1.0", path = "../core" }
 hiero-did-messages = { version = "0.1.0", path = "../messages" }
 hiero-did-hcs = { version = "0.1.0", path = "../hcs" }
 hiero-did-signer = { version = "0.1.0", path = "../signer" }
+hiero-did-utils = { version = "0.1.0", path = "../utils" }
 reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

@@ -12,7 +12,7 @@ This repository is a Rust workspace for `did:hedera` operations on Hiero/Hedera.
 - Shared DID/domain primitives, message models, signing boundaries, and lifecycle orchestration.
 - AnonCreds registry operations on top of HCS.
 - An umbrella SDK crate that re-exports the public SDK crates.
-- Local utility and scratch crates that support tests or experiments but are not part of the umbrella SDK surface.
+- Local utility crates that support tests or experiments but are not part of the umbrella SDK surface.
 
 Toolchain baseline:
 
@@ -35,7 +35,6 @@ Workspace members in root `Cargo.toml`:
 - `lifecycle` -> package `hiero-did-lifecycle`
 - `utils` -> package `hiero-did-utils`
 - `sdk` -> package `hiero-did-sdk`
-- `scratch` -> package `scratch`
 
 Runtime dependency direction:
 
@@ -62,7 +61,6 @@ hiero-did-sdk
   \-- hiero-did-core
 
 hiero-did-utils: test/support helpers; not re-exported by `hiero-did-sdk`.
-scratch: local binary crate; not re-exported by `hiero-did-sdk`.
 ```
 
 Important boundaries:
@@ -179,9 +177,6 @@ Workspace support crate:
 
 ### 3.12 `hiero-did-sdk`
 Umbrella import surface that re-exports all public workspace crates (anoncreds, client, core, hcs, lifecycle, messages, method, registrar, resolver, signer).
-
-### 3.13 `scratch`
-Local binary crate for ad-hoc experiments. Not part of the public SDK surface or contract.
 
 ## 4. Runtime Flows
 
