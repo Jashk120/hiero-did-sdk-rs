@@ -132,6 +132,12 @@ where
                     })?;
                     let bytes = message.message_bytes()?;
                     let signature = signer.sign_bytes(&bytes)?;
+                    if signature.len() != 64 {
+                        return Err(DIDError::InvalidArgument(format!(
+                            "Signer returned {}-byte signature; Ed25519 requires exactly 64 bytes",
+                            signature.len()
+                        )));
+                    }
                     message.set_signature(signature)?;
                     self.run_hooks(&step.label, message).await?;
                 }

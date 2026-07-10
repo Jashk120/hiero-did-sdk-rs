@@ -17,9 +17,17 @@ hiero-did-method = { path = "../method" }
 hiero-did-messages = { path = "../messages" }
 hiero-did-registrar = { path = "../registrar" }
 hiero-did-resolver = { path = "../resolver" }
-hiero-did-signer = { path = "../signer" }
+hiero-did-utils = { path = "../utils" }
+hiero-did-signer = { path = "../signer", features = [] }
+
+[features]
+default = ["vault"]
+vault = ["hiero-did-signer/vault"]
 
 [dev-dependencies]
+async-trait = "0.1"
 dotenvy = "0.15.7"
 hiero-sdk = { workspace = true }
+serial_test = "3"
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
+uuid = { version = "1", features = ["v4"] }

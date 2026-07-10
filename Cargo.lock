@@ -1163,6 +1163,7 @@ dependencies = [
  "hiero-did-messages",
  "hiero-did-registrar",
  "hiero-did-signer",
+ "hiero-did-utils",
  "hiero-sdk",
  "reqwest",
  "serde",
@@ -1177,6 +1178,7 @@ dependencies = [
 name = "hiero-did-sdk"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "dotenvy",
  "hiero-did-anoncreds",
  "hiero-did-client",
@@ -1188,8 +1190,11 @@ dependencies = [
  "hiero-did-registrar",
  "hiero-did-resolver",
  "hiero-did-signer",
+ "hiero-did-utils",
  "hiero-sdk",
+ "serial_test",
  "tokio",
+ "uuid",
 ]
 
 [[package]]
@@ -2729,14 +2734,6 @@ name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
-
-[[package]]
-name = "scratch"
-version = "0.1.0"
-dependencies = [
- "hiero-sdk",
- "tokio",
-]
 
 [[package]]
 name = "scrypt"

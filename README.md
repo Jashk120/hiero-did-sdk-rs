@@ -16,7 +16,6 @@ Rust workspace for creating, updating, deactivating, and resolving `did:hedera` 
 - `hiero-did-lifecycle`: generic labeled lifecycle runner for DID operation orchestration, pause/resume boundaries, signing, and externally attached signatures.
 - `hiero-did-utils`: shared test harness and polling helpers used by integration tests.
 - `hiero-did-sdk`: umbrella crate that re-exports the workspace crates.
-- `scratch`: local binary crate for ad-hoc experiments (not part of SDK surface).
 
 ## Documentation
 

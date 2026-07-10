@@ -22,6 +22,7 @@ use crate::utils::{
     unpack_revocation_entry,
 };
 
+#[derive(Clone)]
 pub struct HederaAnonCredsRegistry {
     hcs_service: HederaHcsService,
 }

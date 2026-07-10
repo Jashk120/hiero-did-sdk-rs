@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use hiero_did_core::DIDError;
+use hiero_did_utils::polling::poll_until;
 use serde::Deserialize;
 
 use crate::topic_reader::TopicReader;
@@ -66,23 +67,31 @@ impl MirrorNodeClient {
         topic_id: &str,
         timeout_secs: u64,
     ) -> Result<Vec<String>, DIDError> {
-        let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(timeout_secs);
-
-        loop {
-            let messages = self.get_topic_messages(topic_id).await?;
-            if !messages.is_empty() {
-                return Ok(messages);
-            }
-            if tokio::time::Instant::now() >= deadline {
-                return Err(DIDError::InternalError(format!(
-                    "Timed out waiting for mirror node to index topic {}",
-                    topic_id
-                )));
-            }
-            tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-        }
+        let self_ref = self;
+        let topic = topic_id.to_string();
+        poll_until(
+            || {
+                let topic = topic.clone();
+                async move {
+                    match self_ref.get_topic_messages(&topic).await {
+                        Ok(msgs) if !msgs.is_empty() => Some(Ok(msgs)),
+                        Ok(_) => None,
+                        Err(e) => Some(Err(e)),
+                    }
+                }
+            },
+            timeout_secs,
+            500,
+        )
+        .await
+        .unwrap_or_else(|| {
+            Err(DIDError::InternalError(format!(
+                "Timed out waiting for mirror node to index topic {}",
+                topic_id
+            )))
+        })
     }
-
+    
     /// Poll until no new messages arrive for `stable_window_ms` milliseconds.
     /// Good for update flows where multiple messages are submitted — avoids
     /// resolving before all messages are indexed.
@@ -92,34 +101,50 @@ impl MirrorNodeClient {
         stable_window_ms: u64,
         timeout_secs: u64,
     ) -> Result<Vec<String>, DIDError> {
-        let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(timeout_secs);
-        let mut last_count = 0;
-        let mut stable_since: Option<tokio::time::Instant> = None;
+        use std::sync::{Arc, Mutex};
 
-        loop {
-            let messages = self.get_topic_messages(topic_id).await?;
+        // Shared inter-iteration state for the poll_until closure.
+        let state: Arc<Mutex<(usize, Option<tokio::time::Instant>)>> =
+            Arc::new(Mutex::new((0, None)));
 
-            if messages.len() != last_count {
-                last_count = messages.len();
-                stable_since = Some(tokio::time::Instant::now());
-            } else if let Some(since) = stable_since {
-                if since.elapsed().as_millis() as u64 >= stable_window_ms {
-                    return Ok(messages);
+        poll_until(
+            || {
+                let topic = topic_id.to_string();
+                let state = Arc::clone(&state);
+                let self_ref = self;
+                async move {
+                    let messages = match self_ref.get_topic_messages(&topic).await {
+                        Ok(m) => m,
+                        Err(e) => return Some(Err(e)),
+                    };
+                    let mut guard = state.lock().unwrap();
+                    let (last_count, stable_since) = &mut *guard;
+
+                    if messages.len() != *last_count {
+                        *last_count = messages.len();
+                        *stable_since = Some(tokio::time::Instant::now());
+                    } else if let Some(since) = *stable_since {
+                        if since.elapsed().as_millis() as u64 >= stable_window_ms {
+                            return Some(Ok(messages));
+                        }
+                    } else {
+                        *stable_since = Some(tokio::time::Instant::now());
+                    }
+                    None
                 }
-            } else {
-                stable_since = Some(tokio::time::Instant::now());
-            }
-
-            if tokio::time::Instant::now() >= deadline {
-                return Err(DIDError::InternalError(format!(
-                    "Timed out waiting for stable state on topic {}",
-                    topic_id
-                )));
-            }
-
-            tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
-        }
+            },
+            timeout_secs,
+            300,
+        )
+        .await
+        .unwrap_or_else(|| {
+            Err(DIDError::InternalError(format!(
+                "Timed out waiting for stable state on topic {}",
+                topic_id
+            )))
+        })
     }
+
 
     /// Fetch all messages for a topic, paginating through all pages.
     /// Returns decoded UTF-8 message strings in consensus order.
@@ -164,6 +189,7 @@ impl MirrorNodeClient {
         Ok(messages)
     }
 }
+
 
 #[async_trait]
 impl TopicReader for MirrorNodeClient {

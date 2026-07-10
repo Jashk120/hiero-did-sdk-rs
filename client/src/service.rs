@@ -30,6 +30,7 @@ impl NetworkName {
     }
 }
 
+#[derive(Clone)]
 pub struct HederaClientService {
     configuration: HederaClientConfiguration,
 }

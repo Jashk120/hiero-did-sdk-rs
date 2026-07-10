@@ -32,7 +32,7 @@ use hiero_did_hcs::{
     HederaHcsService,
     LocalSigner,
 };
-use hiero_did_utils::tests::poll_until;
+use hiero_did_utils::polling::poll_until;
 use hiero_sdk::PrivateKey;
 
 fn unique_tag(prefix: &str) -> String {

@@ -23,6 +23,7 @@ use crate::hcs::{
     UpdateTopicProps,
 };
 
+#[derive(Clone)]
 pub struct HederaHcsService {
     client_service: HederaClientService,
     cache: Option<HcsCacheService>,
