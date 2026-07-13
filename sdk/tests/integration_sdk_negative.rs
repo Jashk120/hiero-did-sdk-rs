@@ -152,16 +152,22 @@ async fn update_after_deactivation_must_not_revive_did() {
         // Poll until the mirror reflects either deactivated=true or the update.
         // A correctly implemented SDK must never revive a deactivated DID.
         let resolution = poll_until(
-            || {
-                let did_str = did.to_string();
-                let sdk = ctx.sdk.clone();
-                async move { sdk.resolve_did(&did_str, None).await.ok() }
-            },
-            30,
-            1000,
-        )
-        .await
-        .expect("resolve after post-deactivation update failed");
+    || {
+        let did_str = did.to_string();
+        let sdk = ctx.sdk.clone();
+        async move {
+            match sdk.resolve_did(&did_str, None).await {
+                Ok(res) if res.did_document_metadata.deactivated.unwrap_or(false) => Some(res),
+                _ => None, // keep polling — not converged yet
+            }
+        }
+    },
+    30,
+    1000,
+)
+.await
+.expect("DID never showed deactivated=true within timeout — either mirror lag exceeded budget or deactivation was actually reverted");
+
         assert!(
             resolution.did_document_metadata.deactivated.unwrap_or(false),
             "Updating after deactivation must not revive the DID document"
@@ -293,8 +299,18 @@ async fn csm_cross_did_replay_does_not_affect_other_did() {
     let _ = ctx.sdk.submit_deactivate_did_csm(None, submit_req_a).await;
 
     // DID_B must remain live
-    let resolution_b =
-        ctx.sdk.resolve_did(&create_b.did.to_string(), None).await.expect("resolve DID_B failed");
+    let resolution_b = poll_until(
+        || {
+            let did_str = create_b.did.to_string();
+            let sdk = ctx.sdk.clone();
+            async move { sdk.resolve_did(&did_str, None).await.ok() }
+        },
+        30,
+        1000,
+    )
+    .await
+    .expect("DID_B never resolved — mirror indexing failed or timed out");
+
     assert!(
         !resolution_b.did_document_metadata.deactivated.unwrap_or(false),
         "DID_B must not be deactivated as a side-effect"

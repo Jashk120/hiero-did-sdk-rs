@@ -51,12 +51,11 @@ async fn run_lifecycle(sdk: &HieroDidSdk) -> Result<(), Box<dyn std::error::Erro
     println!("Created DID: {}", did);
 
     // 2. Resolve the DID Document
-    let resolution = sdk.resolve_did(&did, None).await?;
+    let resolution = sdk.resolve_did(&did.to_string(), None).await?;
     println!("Resolved Document ID: {}", resolution.did_document.id);
 
     // 3. Deactivate the DID using the ownership private key
-    let raw_key = [0u8; 32]; // Key bytes matching the DID identifier
-    sdk.deactivate_did(None, create_result.hedera_did, &raw_key).await?;
+    sdk.deactivate_did(None, did, &create_result.private_key_bytes).await?;
     
     Ok(())
 }
@@ -118,10 +117,10 @@ async fn run_csm_flow(sdk: &HieroDidSdk) -> Result<(), Box<dyn std::error::Error
         .await?;
         
     // 2. Extract raw bytes to sign externally 
-    let bytes_to_sign = signing_req.bytes_to_sign;
+    let message_bytes = signing_req.message_bytes.clone();
     
     // (Perform signing offline/externally)
-    let signature = external_sign_bytes(&bytes_to_sign); 
+    let signature = external_sign_bytes(&message_bytes); 
 
     // 3. Convert signature into a submit request
     let submit_req = signing_req.into_submit_request(signature)?;

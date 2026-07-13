@@ -22,6 +22,7 @@ pub use deactivate::{
     submit_deactivate_did_csm,
 };
 use hiero_did_core::{
+    signer::validate_ed25519_signature_len,
     DIDError,
     HederaDid,
     KeysUtility,
@@ -415,14 +416,7 @@ pub fn require_signature(signature: &[u8]) -> Result<(), DIDError> {
         return Err(DIDError::InvalidArgument("CSM signature cannot be empty".to_string()));
     }
 
-    if signature.len() != 64 {
-        return Err(DIDError::InvalidArgument(format!(
-            "CSM signature must be 64 bytes, got {}",
-            signature.len()
-        )));
-    }
-
-    Ok(())
+    validate_ed25519_signature_len(signature)
 }
 
 pub async fn submit_csm_request(
