@@ -3,10 +3,15 @@
 //! # Prerequisites: same as integration_sdk.rs
 mod common;
 
-use common::local_node::{setup, unique_tag};
 use std::collections::HashMap;
 use std::sync::Arc;
-use hiero_did_sdk::{anoncreds, core::did::Network};
+
+use common::local_node::{
+    setup,
+    unique_tag,
+};
+use hiero_did_sdk::anoncreds;
+use hiero_did_sdk::core::did::Network;
 use serial_test::serial;
 
 #[tokio::test]
@@ -22,11 +27,8 @@ async fn sdk_anoncreds_schema_and_cred_def_roundtrip() {
     //
     // Fix: create a real issuer DID via the SDK first, and use the DID
     // string it returns.
-    let issuer_did_doc = ctx
-        .sdk
-        .create_did(None, Network::Local, None)
-        .await
-        .expect("create issuer did");
+    let issuer_did_doc =
+        ctx.sdk.create_did(None, Network::Local, None).await.expect("create issuer did");
 
     // Adjust this field access to match your actual return type --
     // e.g. `.did`, `.id`, `.document.id`, etc. Whatever field holds
@@ -52,10 +54,7 @@ async fn sdk_anoncreds_schema_and_cred_def_roundtrip() {
         schema_id,
         cred_type: "CL".to_string(),
         tag: unique_tag("sdk-creddef"),
-        value: anoncreds::CredentialDefinitionValue {
-            primary: HashMap::new(),
-            revocation: None,
-        },
+        value: anoncreds::CredentialDefinitionValue { primary: HashMap::new(), revocation: None },
     };
 
     let cred_def_id = ctx
@@ -65,12 +64,8 @@ async fn sdk_anoncreds_schema_and_cred_def_roundtrip() {
         .await
         .expect("register cred def");
 
-    let resolved = ctx
-        .sdk
-        .anoncreds()
-        .get_credential_definition(&cred_def_id)
-        .await
-        .expect("get cred def");
+    let resolved =
+        ctx.sdk.anoncreds().get_credential_definition(&cred_def_id).await.expect("get cred def");
 
     assert_eq!(resolved.issuer_id, cred_def.issuer_id);
     assert_eq!(resolved.tag, cred_def.tag);
@@ -96,11 +91,7 @@ async fn register_schema_with_malformed_issuer_id_should_be_rejected_at_write_ti
         attr_names: vec!["email".to_string()],
     };
 
-    let result = ctx
-        .sdk
-        .anoncreds()
-        .register_schema(None, schema, Arc::clone(&ctx.signer))
-        .await;
+    let result = ctx.sdk.anoncreds().register_schema(None, schema, Arc::clone(&ctx.signer)).await;
 
     // Document current behavior. If this currently passes (Ok), that's the
     // asymmetry flagged in review: write-time accepts garbage, read-time

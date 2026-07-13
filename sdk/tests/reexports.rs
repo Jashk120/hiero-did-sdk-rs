@@ -1,4 +1,15 @@
-use hiero_did_sdk::{anoncreds, client, core, hcs, messages, method, registrar, resolver, signer, HieroDidSdk};
+use hiero_did_sdk::{
+    HieroDidSdk,
+    anoncreds,
+    client,
+    core,
+    hcs,
+    messages,
+    method,
+    registrar,
+    resolver,
+    signer,
+};
 
 #[test]
 fn sdk_reexports_are_accessible() {
@@ -35,12 +46,18 @@ async fn test_sdk_handler_instantiation_from_config() {
         }],
     };
 
-    let sdk = HieroDidSdk::from_config(config, None).expect("failed to instantiate SDK from config");
+    let sdk =
+        HieroDidSdk::from_config(config, None).expect("failed to instantiate SDK from config");
     assert!(sdk.client_service().get_client(None).is_ok());
 
     // Verify resolving a DID doesn't panic and handles input correctly
     // (It might return a resolution error for fake DIDs but the parsing path is hit)
-    let result = sdk.resolve_did("did:hedera:testnet:z6MkpTHR8VNsBxRcmSt62E7SdTcv9B8ndv5Tzz6A4j5b2j3m_0.0.123", None).await;
+    let result = sdk
+        .resolve_did(
+            "did:hedera:testnet:z6MkpTHR8VNsBxRcmSt62E7SdTcv9B8ndv5Tzz6A4j5b2j3m_0.0.123",
+            None,
+        )
+        .await;
     assert!(result.is_err()); // Expected since mirror nodes won't have it
 }
 
@@ -56,7 +73,8 @@ async fn test_new_vault_signer_instantiates_with_config() {
             }],
         };
 
-        let sdk = HieroDidSdk::from_config(config, None).expect("failed to instantiate SDK from config");
+        let sdk =
+            HieroDidSdk::from_config(config, None).expect("failed to instantiate SDK from config");
         let vault_config = signer::VaultSignerConfig::new(
             "http://localhost:8200",
             signer::VaultAuth::Token("token".into()),

@@ -11,13 +11,27 @@
 
 use std::env;
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{
+    SystemTime,
+    UNIX_EPOCH,
+};
 
-use dotenvy::{from_filename, from_filename_override};
-use hiero_did_sdk::client::{HederaClientConfiguration, HederaNetwork, NetworkConfig};
-use hiero_did_sdk::{HieroDidSdk, core, hcs};
-use hiero_sdk::PrivateKey;
+use dotenvy::{
+    from_filename,
+    from_filename_override,
+};
+use hiero_did_sdk::client::{
+    HederaClientConfiguration,
+    HederaNetwork,
+    NetworkConfig,
+};
+use hiero_did_sdk::{
+    HieroDidSdk,
+    core,
+    hcs,
+};
 pub use hiero_did_utils::polling::poll_until;
+use hiero_sdk::PrivateKey;
 
 /// All context needed for one integration test run.
 pub struct Ctx {
@@ -30,10 +44,7 @@ pub struct Ctx {
 /// Returns a unique suffix based on wall-clock nanoseconds — enough to avoid
 /// topic/DID collisions across tests in a single run.
 pub fn unique_tag(prefix: &str) -> String {
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("clock")
-        .as_nanos();
+    let nanos = SystemTime::now().duration_since(UNIX_EPOCH).expect("clock").as_nanos();
     uuid::Uuid::new_v4().to_string();
     format!("{prefix}-{nanos}")
 }
@@ -99,16 +110,13 @@ pub async fn wait_for_did(
     poll_until(
         || {
             let did = did.to_string();
-            async move {
-                sdk.resolve_did(&did, None).await.ok()
-            }
+            async move { sdk.resolve_did(&did, None).await.ok() }
         },
         timeout_secs,
         1000,
     )
     .await
 }
-
 
 // ---------------------------------------------------------------------------
 // Shared mock signer — represents any "external" signer (Vault, HSM, etc.)

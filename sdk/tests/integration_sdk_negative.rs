@@ -8,13 +8,23 @@
 //! # Prerequisites: same as integration_sdk.rs
 
 mod common;
-use common::local_node::{setup, poll_until, wait_for_did, FailingSigner, MalformedSigner, MockExternalSigner};
-
-use hiero_did_sdk::{
-    core::{DIDError, HederaDid, did::Network},
-    registrar::{
-        AddService, DIDUpdateOperation, CsmPrepareOptions,
-    },
+use common::local_node::{
+    FailingSigner,
+    MalformedSigner,
+    MockExternalSigner,
+    poll_until,
+    setup,
+    wait_for_did,
+};
+use hiero_did_sdk::core::did::Network;
+use hiero_did_sdk::core::{
+    DIDError,
+    HederaDid,
+};
+use hiero_did_sdk::registrar::{
+    AddService,
+    CsmPrepareOptions,
+    DIDUpdateOperation,
 };
 use serial_test::serial;
 
@@ -28,7 +38,11 @@ use serial_test::serial;
 async fn deactivate_nonexistent_did_returns_error() {
     let Some(ctx) = setup() else { return };
 
-    let fake_did = HederaDid::new(Network::Local, "z6MkfakeXYZABCDEFGHIJKL".to_string(), "0.0.99999999".to_string());
+    let fake_did = HederaDid::new(
+        Network::Local,
+        "z6MkfakeXYZABCDEFGHIJKL".to_string(),
+        "0.0.99999999".to_string(),
+    );
     let fake_key = hiero_sdk::PrivateKey::generate_ed25519().to_bytes_raw();
 
     let result = ctx.sdk.deactivate_did(None, fake_did, &fake_key).await;
@@ -41,7 +55,11 @@ async fn deactivate_nonexistent_did_returns_error() {
 async fn update_nonexistent_did_returns_error() {
     let Some(ctx) = setup() else { return };
 
-    let fake_did = HederaDid::new(Network::Local, "z6MkfakeXYZABCDEFGHIJKL".to_string(), "0.0.99999998".to_string());
+    let fake_did = HederaDid::new(
+        Network::Local,
+        "z6MkfakeXYZABCDEFGHIJKL".to_string(),
+        "0.0.99999998".to_string(),
+    );
     let fake_key = hiero_sdk::PrivateKey::generate_ed25519().to_bytes_raw();
 
     let result = ctx
@@ -67,11 +85,7 @@ async fn update_nonexistent_did_returns_error() {
 async fn deactivate_already_deactivated_did_errors_or_stays_deactivated() {
     let Some(ctx) = setup() else { return };
 
-    let create = ctx
-        .sdk
-        .create_did(None, Network::Local, None)
-        .await
-        .expect("create failed");
+    let create = ctx.sdk.create_did(None, Network::Local, None).await.expect("create failed");
     let did = create.did.clone();
 
     ctx.sdk
@@ -79,10 +93,7 @@ async fn deactivate_already_deactivated_did_errors_or_stays_deactivated() {
         .await
         .expect("first deactivation must succeed");
 
-    let second = ctx
-        .sdk
-        .deactivate_did(None, did.clone(), &create.private_key_bytes)
-        .await;
+    let second = ctx.sdk.deactivate_did(None, did.clone(), &create.private_key_bytes).await;
 
     if second.is_ok() {
         // Wait for the mirror to reflect the final state before asserting.
@@ -91,7 +102,8 @@ async fn deactivate_already_deactivated_did_errors_or_stays_deactivated() {
                 let did_str = did.to_string();
                 let sdk = ctx.sdk.clone();
                 async move {
-                    sdk.resolve_did(&did_str, None).await
+                    sdk.resolve_did(&did_str, None)
+                        .await
                         .ok()
                         .filter(|r| r.did_document_metadata.deactivated.unwrap_or(false))
                 }
@@ -114,11 +126,7 @@ async fn deactivate_already_deactivated_did_errors_or_stays_deactivated() {
 async fn update_after_deactivation_must_not_revive_did() {
     let Some(ctx) = setup() else { return };
 
-    let create = ctx
-        .sdk
-        .create_did(None, Network::Local, None)
-        .await
-        .expect("create failed");
+    let create = ctx.sdk.create_did(None, Network::Local, None).await.expect("create failed");
     let did = create.did.clone();
 
     ctx.sdk
@@ -147,9 +155,7 @@ async fn update_after_deactivation_must_not_revive_did() {
             || {
                 let did_str = did.to_string();
                 let sdk = ctx.sdk.clone();
-                async move {
-                    sdk.resolve_did(&did_str, None).await.ok()
-                }
+                async move { sdk.resolve_did(&did_str, None).await.ok() }
             },
             30,
             1000,
@@ -173,11 +179,7 @@ async fn update_after_deactivation_must_not_revive_did() {
 async fn csm_prepare_without_submit_leaves_no_partial_state() {
     let Some(ctx) = setup() else { return };
 
-    let create = ctx
-        .sdk
-        .create_did(None, Network::Local, None)
-        .await
-        .expect("create failed");
+    let create = ctx.sdk.create_did(None, Network::Local, None).await.expect("create failed");
     let did = create.did.clone();
 
     // Prepare — no submit (drop the signing request)
@@ -188,7 +190,8 @@ async fn csm_prepare_without_submit_leaves_no_partial_state() {
         .expect("prepare_deactivate_did_csm failed");
 
     // DID should still be live and resolvable (poll mirror since it was just created)
-    let resolution = wait_for_did(&ctx.sdk, &did.to_string(), 30).await
+    let resolution = wait_for_did(&ctx.sdk, &did.to_string(), 30)
+        .await
         .expect("resolve after orphaned prepare failed");
 
     assert!(
@@ -255,13 +258,23 @@ async fn csm_cross_did_replay_does_not_affect_other_did() {
 
     let create_a = ctx
         .sdk
-        .create_did_with_signer(None, Network::Local, None, &hiero_did_sdk::hcs::LocalSigner::new(key_a.clone()))
+        .create_did_with_signer(
+            None,
+            Network::Local,
+            None,
+            &hiero_did_sdk::hcs::LocalSigner::new(key_a.clone()),
+        )
         .await
         .expect("create DID_A failed");
 
     let create_b = ctx
         .sdk
-        .create_did_with_signer(None, Network::Local, None, &hiero_did_sdk::hcs::LocalSigner::new(key_b.clone()))
+        .create_did_with_signer(
+            None,
+            Network::Local,
+            None,
+            &hiero_did_sdk::hcs::LocalSigner::new(key_b.clone()),
+        )
         .await
         .expect("create DID_B failed");
 
@@ -273,17 +286,15 @@ async fn csm_cross_did_replay_does_not_affect_other_did() {
         .expect("prepare deactivate DID_A failed");
 
     let sig_a = key_a.sign(&signing_req_a.message_bytes);
-    let submit_req_a = signing_req_a.into_submit_request(sig_a).expect("into_submit_request failed");
+    let submit_req_a =
+        signing_req_a.into_submit_request(sig_a).expect("into_submit_request failed");
 
     // Submit — this operates on DID_A's topic, DID_B should be untouched
     let _ = ctx.sdk.submit_deactivate_did_csm(None, submit_req_a).await;
 
     // DID_B must remain live
-    let resolution_b = ctx
-        .sdk
-        .resolve_did(&create_b.did.to_string(), None)
-        .await
-        .expect("resolve DID_B failed");
+    let resolution_b =
+        ctx.sdk.resolve_did(&create_b.did.to_string(), None).await.expect("resolve DID_B failed");
     assert!(
         !resolution_b.did_document_metadata.deactivated.unwrap_or(false),
         "DID_B must not be deactivated as a side-effect"
@@ -296,11 +307,7 @@ async fn csm_cross_did_replay_does_not_affect_other_did() {
 async fn csm_update_batch_signature_count_mismatch_is_rejected() {
     let Some(ctx) = setup() else { return };
 
-    let create = ctx
-        .sdk
-        .create_did(None, Network::Local, None)
-        .await
-        .expect("create failed");
+    let create = ctx.sdk.create_did(None, Network::Local, None).await.expect("create failed");
     let did = create.did.clone();
 
     let batch_req = ctx
@@ -345,7 +352,13 @@ async fn csm_expired_state_is_rejected_on_submit() {
 
     let signing_req = ctx
         .sdk
-        .prepare_create_did_csm_with_options(None, Network::Local, public_key_bytes, None, expired_options)
+        .prepare_create_did_csm_with_options(
+            None,
+            Network::Local,
+            public_key_bytes,
+            None,
+            expired_options,
+        )
         .await
         .expect("prepare failed");
 
@@ -371,10 +384,7 @@ async fn create_did_with_failing_signer_propagates_error() {
     let Some(ctx) = setup() else { return };
 
     let failing = FailingSigner;
-    let result = ctx
-        .sdk
-        .create_did_with_signer(None, Network::Local, None, &failing)
-        .await;
+    let result = ctx.sdk.create_did_with_signer(None, Network::Local, None, &failing).await;
 
     assert!(result.is_err(), "failing signer must propagate error cleanly");
 }
@@ -386,10 +396,7 @@ async fn create_did_with_malformed_signer_propagates_error() {
     let Some(ctx) = setup() else { return };
 
     let malformed = MalformedSigner;
-    let result = ctx
-        .sdk
-        .create_did_with_signer(None, Network::Local, None, &malformed)
-        .await;
+    let result = ctx.sdk.create_did_with_signer(None, Network::Local, None, &malformed).await;
 
     assert!(result.is_err(), "malformed signer output must be rejected, not panicked");
 }
@@ -446,13 +453,8 @@ async fn resolve_invalid_did_string_gives_parse_error() {
 async fn resolve_nonexistent_did_returns_error() {
     let Some(ctx) = setup() else { return };
 
-    let result = ctx
-        .sdk
-        .resolve_did(
-            "did:hedera:local:z6MkfakeXYZABCDEFGHIJKL_0.0.99999999",
-            None,
-        )
-        .await;
+    let result =
+        ctx.sdk.resolve_did("did:hedera:local:z6MkfakeXYZABCDEFGHIJKL_0.0.99999999", None).await;
 
     assert!(result.is_err(), "non-existent DID must return an error");
 }
@@ -463,11 +465,7 @@ async fn resolve_nonexistent_did_returns_error() {
 async fn dereference_nonexistent_fragment_returns_error() {
     let Some(ctx) = setup() else { return };
 
-    let create = ctx
-        .sdk
-        .create_did(None, Network::Local, None)
-        .await
-        .expect("create failed");
+    let create = ctx.sdk.create_did(None, Network::Local, None).await.expect("create failed");
 
     let did_url = format!("{}#fragment-that-does-not-exist", create.did);
     let result = ctx.sdk.dereference_did_url(&did_url, None).await;
@@ -483,11 +481,7 @@ async fn dereference_nonexistent_fragment_returns_error() {
 async fn resolve_deactivated_did_returns_deactivated_metadata() {
     let Some(ctx) = setup() else { return };
 
-    let create = ctx
-        .sdk
-        .create_did(None, Network::Local, None)
-        .await
-        .expect("create failed");
+    let create = ctx.sdk.create_did(None, Network::Local, None).await.expect("create failed");
     let did = create.did.clone();
 
     ctx.sdk
@@ -501,7 +495,8 @@ async fn resolve_deactivated_did_returns_deactivated_metadata() {
             let did_str = did.to_string();
             let sdk = ctx.sdk.clone();
             async move {
-                sdk.resolve_did(&did_str, None).await
+                sdk.resolve_did(&did_str, None)
+                    .await
                     .ok()
                     .filter(|r| r.did_document_metadata.deactivated.unwrap_or(false))
             }
@@ -537,11 +532,7 @@ async fn resolve_deactivated_did_returns_deactivated_metadata() {
 async fn regression_historical_topic_message_query_not_from_now() {
     let Some(ctx) = setup() else { return };
 
-    let create = ctx
-        .sdk
-        .create_did(None, Network::Local, None)
-        .await
-        .expect("create failed");
+    let create = ctx.sdk.create_did(None, Network::Local, None).await.expect("create failed");
     let did = create.did.clone();
 
     // Build a completely fresh SDK (no in-process cache — simulates app restart)
@@ -571,8 +562,7 @@ async fn prepare_csm_does_not_hit_network() {
     let _ = dotenvy::from_filename(".env");
     // Use real env credentials so the SDK passes key-format validation, but
     // point gRPC at a port that is guaranteed to refuse connections.
-    let operator_id = std::env::var("HEDERA_ACCOUNT_ID")
-        .unwrap_or_else(|_| "0.0.2".to_string());
+    let operator_id = std::env::var("HEDERA_ACCOUNT_ID").unwrap_or_else(|_| "0.0.2".to_string());
     let operator_key = std::env::var("HEDERA_PRIVATE_KEY")
         .unwrap_or_else(|_| {
             // This is the standard local-node genesis key — safe to embed in tests.
@@ -629,13 +619,20 @@ async fn csm_true_replay_is_accepted_by_hedera() {
 
     // First submit must succeed
     let first = ctx.sdk.submit_create_did_csm(None, submit_req.clone()).await;
-    assert!(first.is_ok(), "First submission must succeed: {:?}", first.err().map(|e| e.to_string()));
+    assert!(
+        first.is_ok(),
+        "First submission must succeed: {:?}",
+        first.err().map(|e| e.to_string())
+    );
 
     // Immediate replay of the identical signed payload
     // Hedera network DOES NOT inherently reject payload replays if submitted in
     // distinct transactions (i.e. different TransactionIds). It's up to the resolver to deduplicate.
     let second = ctx.sdk.submit_create_did_csm(None, submit_req).await;
-    assert!(second.is_ok(), "Hedera accepts identical payload replays when sent as new transactions");
+    assert!(
+        second.is_ok(),
+        "Hedera accepts identical payload replays when sent as new transactions"
+    );
 }
 
 /// OrphanedTopic error tag format lock.
@@ -656,7 +653,7 @@ async fn csm_true_replay_is_accepted_by_hedera() {
 /// upstream change to hiero-sdk-rust exposing Channel construction.
 /// TODO(regression): requires either a public Client::for_channel(...)
 /// constructor upstream, or a toxiproxy-based transport-layer proxy.
-/// 
+///
 /// Reproducing it deterministically requires a transport-layer proxy (e.g. toxiproxy
 /// or a custom gRPC interceptor) that can drop the connection mid-stream. That is
 /// currently tracked as: TODO(regression) orphaned-topic end-to-end, requires toxiproxy.
@@ -667,9 +664,10 @@ fn orphaned_topic_error_tag_format_lock() {
 
     // This mirrors `registrar/src/create.rs` submit_with_retry, line ~166:
     //   DIDError::InternalError(format!("orphaned_topic={} reason={}", topic_id, e))
-    let err = hiero_did_sdk::core::DIDError::InternalError(
-        format!("orphaned_topic={} reason={}", topic_id, reason)
-    );
+    let err = hiero_did_sdk::core::DIDError::InternalError(format!(
+        "orphaned_topic={} reason={}",
+        topic_id, reason
+    ));
 
     let err_str = err.to_string();
     assert!(

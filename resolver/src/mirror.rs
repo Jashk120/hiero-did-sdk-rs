@@ -91,7 +91,7 @@ impl MirrorNodeClient {
             )))
         })
     }
-    
+
     /// Poll until no new messages arrive for `stable_window_ms` milliseconds.
     /// Good for update flows where multiple messages are submitted — avoids
     /// resolving before all messages are indexed.
@@ -101,7 +101,10 @@ impl MirrorNodeClient {
         stable_window_ms: u64,
         timeout_secs: u64,
     ) -> Result<Vec<String>, DIDError> {
-        use std::sync::{Arc, Mutex};
+        use std::sync::{
+            Arc,
+            Mutex,
+        };
 
         // Shared inter-iteration state for the poll_until closure.
         let state: Arc<Mutex<(usize, Option<tokio::time::Instant>)>> =
@@ -144,7 +147,6 @@ impl MirrorNodeClient {
             )))
         })
     }
-
 
     /// Fetch all messages for a topic, paginating through all pages.
     /// Returns decoded UTF-8 message strings in consensus order.
@@ -189,7 +191,6 @@ impl MirrorNodeClient {
         Ok(messages)
     }
 }
-
 
 #[async_trait]
 impl TopicReader for MirrorNodeClient {

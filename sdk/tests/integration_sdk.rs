@@ -12,15 +12,17 @@
 //! will print a clear message to stderr explaining the skip.
 
 mod common;
-use common::local_node::{setup, MockExternalSigner};
-
-use hiero_did_sdk::{
-    core::did::Network,
-    registrar::{
-        AddService, DIDUpdateOperation, CsmPrepareOptions,
-    },
-    resolver::MirrorNodeClient,
+use common::local_node::{
+    MockExternalSigner,
+    setup,
 };
+use hiero_did_sdk::core::did::Network;
+use hiero_did_sdk::registrar::{
+    AddService,
+    CsmPrepareOptions,
+    DIDUpdateOperation,
+};
+use hiero_did_sdk::resolver::MirrorNodeClient;
 use serial_test::serial;
 
 // ---------------------------------------------------------------------------
@@ -37,18 +39,12 @@ async fn lifecycle_create_update_deactivate_resolve() {
     let mirror = MirrorNodeClient::for_local();
 
     // 1. Create
-    let create_result = ctx
-        .sdk
-        .create_did(None, Network::Local, None)
-        .await
-        .expect("create_did failed");
+    let create_result =
+        ctx.sdk.create_did(None, Network::Local, None).await.expect("create_did failed");
     let did = create_result.did.clone();
     println!("[lifecycle] created DID: {did}");
 
-    mirror
-        .wait_for_mirror(&did.topic_id, 30)
-        .await
-        .expect("Mirror wait post-create failed");
+    mirror.wait_for_mirror(&did.topic_id, 30).await.expect("Mirror wait post-create failed");
 
     // 2. Resolve — should find a live, non-deactivated document
     let resolution = ctx
@@ -57,7 +53,10 @@ async fn lifecycle_create_update_deactivate_resolve() {
         .await
         .expect("resolve_did (post-create) failed");
     assert_eq!(resolution.did_document.id, did.to_string());
-    assert!(!resolution.did_document_metadata.deactivated.unwrap_or(false), "DID should not be deactivated yet");
+    assert!(
+        !resolution.did_document_metadata.deactivated.unwrap_or(false),
+        "DID should not be deactivated yet"
+    );
 
     // 3. Update — add a service
     let update_result = ctx
@@ -88,7 +87,10 @@ async fn lifecycle_create_update_deactivate_resolve() {
         .await
         .expect("resolve_did (post-update) failed");
     let services = resolution_after_update.did_document.service.unwrap_or_default();
-    assert!(services.iter().any(|s| s.id.ends_with("#vcs")), "service should be present after update");
+    assert!(
+        services.iter().any(|s| s.id.ends_with("#vcs")),
+        "service should be present after update"
+    );
 
     // 5. Deactivate
     ctx.sdk
@@ -120,17 +122,10 @@ async fn update_did_applies_multiple_operations() {
     let Some(ctx) = setup() else { return };
     let mirror = MirrorNodeClient::for_local();
 
-    let create = ctx
-        .sdk
-        .create_did(None, Network::Local, None)
-        .await
-        .expect("create_did failed");
+    let create = ctx.sdk.create_did(None, Network::Local, None).await.expect("create_did failed");
     let did = create.did.clone();
 
-    mirror
-        .wait_for_mirror(&did.topic_id, 30)
-        .await
-        .expect("Mirror wait post-create failed");
+    mirror.wait_for_mirror(&did.topic_id, 30).await.expect("Mirror wait post-create failed");
 
     let result = ctx
         .sdk
@@ -161,11 +156,7 @@ async fn update_did_applies_multiple_operations() {
         .await
         .expect("Mirror wait post-update failed");
 
-    let resolved = ctx
-        .sdk
-        .resolve_did(&did.to_string(), None)
-        .await
-        .expect("resolve_did failed");
+    let resolved = ctx.sdk.resolve_did(&did.to_string(), None).await.expect("resolve_did failed");
     let services = resolved.did_document.service.unwrap_or_default();
     assert_eq!(services.len(), 2);
 }
@@ -177,18 +168,11 @@ async fn update_did_add_then_remove_service() {
     let Some(ctx) = setup() else { return };
     let mirror = MirrorNodeClient::for_local();
 
-    let create = ctx
-        .sdk
-        .create_did(None, Network::Local, None)
-        .await
-        .expect("create failed");
+    let create = ctx.sdk.create_did(None, Network::Local, None).await.expect("create failed");
     let did = create.did.clone();
     let svc_id = format!("{}#endpoint", did);
 
-    mirror
-        .wait_for_mirror(&did.topic_id, 30)
-        .await
-        .expect("Mirror wait post-create failed");
+    mirror.wait_for_mirror(&did.topic_id, 30).await.expect("Mirror wait post-create failed");
 
     // Add service
     ctx.sdk
@@ -216,17 +200,16 @@ async fn update_did_add_then_remove_service() {
             None,
             did.clone(),
             &create.private_key_bytes,
-            vec![DIDUpdateOperation::RemoveService(hiero_did_sdk::registrar::RemoveService { id: svc_id.clone() })],
+            vec![DIDUpdateOperation::RemoveService(hiero_did_sdk::registrar::RemoveService {
+                id: svc_id.clone(),
+            })],
         )
         .await
         .expect("remove service failed");
     let resolved = ctx
         .sdk
         .resolve_did_until(&did.to_string(), 30, |r| {
-            r.did_document
-                .service
-                .as_ref()
-                .map_or(true, |s| s.iter().all(|x| x.id != svc_id))
+            r.did_document.service.as_ref().map_or(true, |s| s.iter().all(|x| x.id != svc_id))
         })
         .await
         .expect("service removal did not converge within timeout");
@@ -345,9 +328,8 @@ async fn csm_create_prepare_sign_submit() {
     let signature = key.sign(&signing_req.message_bytes);
 
     // 3. Convert to submit request
-    let submit_req = signing_req
-        .into_submit_request(signature)
-        .expect("into_submit_request failed");
+    let submit_req =
+        signing_req.into_submit_request(signature).expect("into_submit_request failed");
 
     // 4. Submit to HCS
     let result = ctx
@@ -368,11 +350,7 @@ async fn csm_update_prepare_sign_submit() {
     let Some(ctx) = setup() else { return };
 
     // First create a DID (standard path so we have a known key)
-    let create = ctx
-        .sdk
-        .create_did(None, Network::Local, None)
-        .await
-        .expect("create failed");
+    let create = ctx.sdk.create_did(None, Network::Local, None).await.expect("create failed");
 
     let did = create.did.clone();
 
@@ -394,13 +372,10 @@ async fn csm_update_prepare_sign_submit() {
     assert_eq!(batch_req.operation, "update");
 
     // Sign each request offline
-    let key = hiero_sdk::PrivateKey::from_bytes(&create.private_key_bytes)
-        .expect("invalid key bytes");
-    let signatures: Vec<Vec<u8>> = batch_req
-        .requests
-        .iter()
-        .map(|r| key.sign(&r.message_bytes))
-        .collect();
+    let key =
+        hiero_sdk::PrivateKey::from_bytes(&create.private_key_bytes).expect("invalid key bytes");
+    let signatures: Vec<Vec<u8>> =
+        batch_req.requests.iter().map(|r| key.sign(&r.message_bytes)).collect();
 
     let submit_req = batch_req.into_submit_request(signatures).expect("into_submit_request failed");
 
@@ -419,11 +394,7 @@ async fn csm_update_prepare_sign_submit() {
 async fn csm_deactivate_prepare_sign_submit() {
     let Some(ctx) = setup() else { return };
 
-    let create = ctx
-        .sdk
-        .create_did(None, Network::Local, None)
-        .await
-        .expect("create failed");
+    let create = ctx.sdk.create_did(None, Network::Local, None).await.expect("create failed");
     let did = create.did.clone();
 
     // Prepare — no network
@@ -439,7 +410,8 @@ async fn csm_deactivate_prepare_sign_submit() {
     let key = hiero_sdk::PrivateKey::from_bytes(&create.private_key_bytes).unwrap();
     let signature = key.sign(&signing_req.message_bytes);
 
-    let submit_req = signing_req.into_submit_request(signature).expect("into_submit_request failed");
+    let submit_req =
+        signing_req.into_submit_request(signature).expect("into_submit_request failed");
 
     ctx.sdk
         .submit_deactivate_did_csm(None, submit_req)
@@ -477,11 +449,7 @@ async fn csm_create_with_options_sets_expiry() {
 async fn update_did_with_empty_ops_returns_zero_applied() {
     let Some(ctx) = setup() else { return };
 
-    let create = ctx
-        .sdk
-        .create_did(None, Network::Local, None)
-        .await
-        .expect("create failed");
+    let create = ctx.sdk.create_did(None, Network::Local, None).await.expect("create failed");
 
     let result = ctx
         .sdk
