@@ -3,9 +3,11 @@
 //! These tests do NOT touch the network. They validate that the SDK constructs
 //! correctly from valid configs and fails correctly from invalid ones.
 
-use hiero_did_sdk::{
-    HieroDidSdk,
-    client::{HederaClientConfiguration, HederaNetwork, NetworkConfig},
+use hiero_did_sdk::HieroDidSdk;
+use hiero_did_sdk::client::{
+    HederaClientConfiguration,
+    HederaNetwork,
+    NetworkConfig,
 };
 use hiero_sdk::PrivateKey;
 
@@ -149,7 +151,10 @@ fn get_client_fails_with_unknown_network_name() {
 #[cfg(feature = "vault")]
 #[tokio::test]
 async fn vault_signer_ctor_fails_gracefully_without_live_vault() {
-    use hiero_did_sdk::signer::{VaultAuth, VaultSignerConfig};
+    use hiero_did_sdk::signer::{
+        VaultAuth,
+        VaultSignerConfig,
+    };
     let handle = tokio::task::spawn_blocking(|| {
         let sdk = HieroDidSdk::from_config(
             HederaClientConfiguration {

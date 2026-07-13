@@ -1,53 +1,55 @@
+use hiero_did_anoncreds::HederaAnonCredsRegistry;
+use hiero_did_client::{
+    HederaClientConfiguration,
+    HederaClientService,
+};
+use hiero_did_core::did::Network;
 use hiero_did_core::{
     DIDError,
+    DIDResolution,
     HederaDid,
     Signer,
-    did::Network,
-    DIDResolution,
-};
-use hiero_did_client::{
-    HederaClientService,
-    HederaClientConfiguration,
 };
 use hiero_did_hcs::{
-    HederaHcsService,
     HcsCacheService,
+    HederaHcsService,
 };
-use hiero_did_resolver::TopicReader;
-use hiero_did_utils::polling::poll_until;
-use hiero_did_anoncreds::HederaAnonCredsRegistry;
 use hiero_did_registrar::{
     CreateDIDResult,
     CreateDIDWithSignerResult,
-    DeactivateDIDResult,
-    UpdateDIDResult,
-    DIDUpdateOperation,
-    CsmSigningRequest,
-    CsmSubmitRequest,
-    CsmSubmitResult,
     CsmBatchSigningRequest,
     CsmBatchSubmitRequest,
     CsmBatchSubmitResult,
     CsmPrepareOptions,
+    CsmSigningRequest,
+    CsmSubmitRequest,
+    CsmSubmitResult,
+    DIDUpdateOperation,
+    DeactivateDIDResult,
+    UpdateDIDResult,
     create_did,
     create_did_with_signer,
     deactivate_did,
     deactivate_did_with_signer,
-    update_did,
-    update_did_with_signer,
     prepare_create_did_csm,
     prepare_create_did_csm_with_options,
-    submit_create_did_csm,
     prepare_deactivate_did_csm,
     prepare_deactivate_did_csm_with_options,
-    submit_deactivate_did_csm,
     prepare_update_did_csm,
     prepare_update_did_csm_with_options,
+    submit_create_did_csm,
+    submit_deactivate_did_csm,
     submit_update_did_csm,
+    update_did,
+    update_did_with_signer,
 };
-
+use hiero_did_resolver::TopicReader;
 #[cfg(feature = "vault")]
-use hiero_did_signer::{VaultSigner, VaultSignerConfig};
+use hiero_did_signer::{
+    VaultSigner,
+    VaultSignerConfig,
+};
+use hiero_did_utils::polling::poll_until;
 
 /// The top-level SDK handler that simplifies interaction with the did:hedera SDK.
 /// It wraps client configuration, HCS services, DID operations (lifecycle & CSM),
@@ -64,15 +66,14 @@ impl HieroDidSdk {
     pub fn new(client_service: HederaClientService, cache: Option<HcsCacheService>) -> Self {
         let hcs_service = HederaHcsService::new(client_service.clone(), cache);
         let anoncreds_registry = HederaAnonCredsRegistry::new(hcs_service.clone());
-        Self {
-            client_service,
-            hcs_service,
-            anoncreds_registry,
-        }
+        Self { client_service, hcs_service, anoncreds_registry }
     }
 
     /// Create a new `HieroDidSdk` handler from a `HederaClientConfiguration` and optional `HcsCacheService`.
-    pub fn from_config(config: HederaClientConfiguration, cache: Option<HcsCacheService>) -> Result<Self, DIDError> {
+    pub fn from_config(
+        config: HederaClientConfiguration,
+        cache: Option<HcsCacheService>,
+    ) -> Result<Self, DIDError> {
         let client_service = HederaClientService::new(config)?;
         Ok(Self::new(client_service, cache))
     }
@@ -194,7 +195,8 @@ impl HieroDidSdk {
         options: CsmPrepareOptions,
     ) -> Result<CsmSigningRequest, DIDError> {
         let client = self.client_service.get_client(network_name)?;
-        prepare_create_did_csm_with_options(&client, network, public_key_bytes, controller, options).await
+        prepare_create_did_csm_with_options(&client, network, public_key_bytes, controller, options)
+            .await
     }
 
     /// Submits a signed DID creation request.

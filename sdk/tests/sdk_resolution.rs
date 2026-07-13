@@ -5,12 +5,14 @@
 //! and resolution pipeline work correctly in isolation.
 
 use async_trait::async_trait;
-use hiero_did_sdk::{
-    HieroDidSdk,
-    client::{HederaClientConfiguration, HederaNetwork, NetworkConfig},
-    core::DIDError,
-    resolver::TopicReader,
+use hiero_did_sdk::HieroDidSdk;
+use hiero_did_sdk::client::{
+    HederaClientConfiguration,
+    HederaNetwork,
+    NetworkConfig,
 };
+use hiero_did_sdk::core::DIDError;
+use hiero_did_sdk::resolver::TopicReader;
 use hiero_sdk::PrivateKey;
 
 // ---------------------------------------------------------------------------
