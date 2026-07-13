@@ -13,3 +13,15 @@ pub trait Signer: Send + Sync {
     /// Sign arbitrary bytes, returning a 64-byte Ed25519 signature.
     fn sign_bytes(&self, message: &[u8]) -> Result<Vec<u8>, DIDError>;
 }
+
+/// Validates that a given Ed25519 signature is exactly 64 bytes long,
+/// enforcing the `Signer` trait's documented contract.
+pub fn validate_ed25519_signature_len(signature: &[u8]) -> Result<(), DIDError> {
+    if signature.len() != 64 {
+        return Err(DIDError::InvalidArgument(format!(
+            "Signature must be 64 bytes for Ed25519, got {}",
+            signature.len()
+        )));
+    }
+    Ok(())
+}

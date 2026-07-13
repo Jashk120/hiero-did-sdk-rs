@@ -41,11 +41,10 @@ impl Signer for TestSigner {
     fn public_key_bytes(&self) -> Vec<u8> {
         vec![9; 32]
     }
+    
 
-    fn sign_bytes(&self, message: &[u8]) -> Result<Vec<u8>, DIDError> {
-        let mut signature = b"signed:".to_vec();
-        signature.extend_from_slice(message);
-        Ok(signature)
+    fn sign_bytes(&self, _message: &[u8]) -> Result<Vec<u8>, DIDError> {
+        Ok(vec![0xAB; 64])
     }
 }
 
@@ -86,7 +85,7 @@ async fn sign_step_uses_signer_and_sets_signature() {
         .expect("process");
 
     assert_eq!(state.status, RunnerStatus::Success);
-    assert_eq!(state.message.signature, Some(b"signed:abc".to_vec()));
+    assert_eq!(state.message.signature, Some(vec![0xAB; 64]));
 }
 
 #[tokio::test]
