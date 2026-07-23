@@ -120,17 +120,17 @@ impl<'a> HcsFileService<'a> {
                 None,
             )
             .await
-            .map_err(|e| DIDError::InternalError(e))?;
+            .map_err(DIDError::InternalError)?;
         }
 
         Ok(topic_id_str)
     }
 
     pub async fn resolve_file(&self, props: &ResolveFileProps) -> Result<Vec<u8>, DIDError> {
-        if let Some(cache) = &self.cache {
-            if let Some(cached) = cache.get_topic_file(&self.network_name, &props.topic_id).await {
-                return Ok(cached);
-            }
+        if let Some(cache) = &self.cache
+            && let Some(cached) = cache.get_topic_file(&self.network_name, &props.topic_id).await
+        {
+            return Ok(cached);
         }
 
         let payload = self.resolve_file_without_cache(props).await?;

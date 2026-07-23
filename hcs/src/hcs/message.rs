@@ -144,15 +144,15 @@ impl HcsMessage {
                         contents: msg.contents.to_vec(),
                         sequence_number: msg.sequence_number,
                     });
-                    if let Some(to) = props.to_time {
-                        if consensus_time >= to {
-                            break;
-                        }
+                    if let Some(to) = props.to_time
+                        && consensus_time >= to
+                    {
+                        break;
                     }
-                    if let Some(limit) = props.limit {
-                        if fresh_results.len() >= limit {
-                            break;
-                        }
+                    if let Some(limit) = props.limit
+                        && fresh_results.len() >= limit
+                    {
+                        break;
                     }
                 }
                 Ok(Some(Err(e))) => {
@@ -169,20 +169,40 @@ impl HcsMessage {
         }
 
         let mut results = merge_dedup_topic_messages(cached.unwrap_or_default(), fresh_results);
-        results.sort_by_key(|m| m.consensus_time);
-        if let Some(limit) = props.limit {
-            if results.len() > limit {
-                results.truncate(limit);
-            }
-        }
+        apply_topic_message_filters(&mut results, props.from_time, props.to_time, props.limit);
 
-        if let Some(cache) = cache {
-            if props.from_time.is_none() && props.to_time.is_none() && props.limit.is_none() {
-                cache.set_topic_messages(network_name, &topic_id_str, &results).await;
-            }
+        if let Some(cache) = cache
+            && props.from_time.is_none()
+            && props.to_time.is_none()
+            && props.limit.is_none()
+        {
+            cache.set_topic_messages(network_name, &topic_id_str, &results).await;
         }
 
         Ok(results)
+    }
+}
+
+fn apply_topic_message_filters(
+    messages: &mut Vec<TopicMessageData>,
+    from_time: Option<OffsetDateTime>,
+    to_time: Option<OffsetDateTime>,
+    limit: Option<usize>,
+) {
+    messages.sort_by_key(|m| m.consensus_time);
+
+    if from_time.is_some() || to_time.is_some() {
+        messages.retain(|m| {
+            let from_ok = from_time.map(|from| m.consensus_time >= from).unwrap_or(true);
+            let to_ok = to_time.map(|to| m.consensus_time <= to).unwrap_or(true);
+            from_ok && to_ok
+        });
+    }
+
+    if let Some(limit) = limit
+        && messages.len() > limit
+    {
+        messages.truncate(limit);
     }
 }
 
@@ -232,5 +252,36 @@ mod tests {
         assert_eq!(merged[0].sequence_number, 1);
         assert_eq!(merged[0].contents, b"new");
         assert_eq!(merged[1].sequence_number, 2);
+    }
+
+    #[test]
+    fn apply_filters_removes_cached_messages_outside_requested_window() {
+        let mut messages = vec![
+            TopicMessageData {
+                consensus_time: OffsetDateTime::UNIX_EPOCH,
+                contents: b"before".to_vec(),
+                sequence_number: 1,
+            },
+            TopicMessageData {
+                consensus_time: OffsetDateTime::UNIX_EPOCH + time::Duration::seconds(10),
+                contents: b"in-range".to_vec(),
+                sequence_number: 2,
+            },
+            TopicMessageData {
+                consensus_time: OffsetDateTime::UNIX_EPOCH + time::Duration::seconds(20),
+                contents: b"after".to_vec(),
+                sequence_number: 3,
+            },
+        ];
+
+        apply_topic_message_filters(
+            &mut messages,
+            Some(OffsetDateTime::UNIX_EPOCH + time::Duration::seconds(5)),
+            Some(OffsetDateTime::UNIX_EPOCH + time::Duration::seconds(15)),
+            None,
+        );
+
+        assert_eq!(messages.len(), 1);
+        assert_eq!(messages[0].contents, b"in-range");
     }
 }

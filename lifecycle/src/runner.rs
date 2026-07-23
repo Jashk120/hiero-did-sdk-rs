@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
+use hiero_did_core::signer::validate_ed25519_signature_len;
 use hiero_did_core::{
-    signer::validate_ed25519_signature_len,
     DIDError,
     Signer,
 };

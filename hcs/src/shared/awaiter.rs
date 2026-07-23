@@ -25,13 +25,10 @@ where
     let start = Instant::now();
 
     loop {
-        match fetch_fn().await {
-            Ok(result) => {
-                if check_fn(&result) {
-                    return Ok(());
-                }
-            }
-            Err(_) => {}
+        if let Ok(result) = fetch_fn().await
+            && check_fn(&result)
+        {
+            return Ok(());
         }
 
         if start.elapsed() >= timeout {
@@ -85,6 +82,6 @@ mod tests {
         .await;
 
         assert!(out.is_err());
-        assert!(out.err().expect("error").contains("Timed out waiting for changes"));
+        assert!(out.expect_err("error").contains("Timed out waiting for changes"));
     }
 }
