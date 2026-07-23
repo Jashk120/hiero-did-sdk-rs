@@ -38,6 +38,7 @@ pub struct TopicInfo {
     pub expiration_time: Option<i64>,
 }
 
+#[derive(Default)]
 pub struct CreateTopicProps {
     pub topic_memo: Option<String>,
     /// Signer whose public key is set as the submit key on the topic.
@@ -47,19 +48,6 @@ pub struct CreateTopicProps {
     pub auto_renew_period_seconds: Option<i64>,
     pub wait_for_visibility: bool,
     pub wait_timeout_ms: Option<u64>,
-}
-
-impl Default for CreateTopicProps {
-    fn default() -> Self {
-        Self {
-            topic_memo: None,
-            submit_key_signer: None,
-            admin_key_signer: None,
-            auto_renew_period_seconds: None,
-            wait_for_visibility: false,
-            wait_timeout_ms: None,
-        }
-    }
 }
 
 pub struct UpdateTopicProps {

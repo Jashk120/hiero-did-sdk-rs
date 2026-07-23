@@ -21,8 +21,8 @@ pub use deactivate::{
     prepare_deactivate_did_csm_with_options,
     submit_deactivate_did_csm,
 };
+use hiero_did_core::signer::validate_ed25519_signature_len;
 use hiero_did_core::{
-    signer::validate_ed25519_signature_len,
     DIDError,
     HederaDid,
     KeysUtility,
@@ -389,12 +389,12 @@ impl CsmOperationState {
     }
 
     pub fn require_not_expired(&self, now_unix: i64) -> Result<(), DIDError> {
-        if let Some(expires_at) = self.expires_at_unix {
-            if now_unix > expires_at {
-                return Err(DIDError::InvalidArgument(format!(
-                    "CSM request expired at {expires_at}"
-                )));
-            }
+        if let Some(expires_at) = self.expires_at_unix
+            && now_unix > expires_at
+        {
+            return Err(DIDError::InvalidArgument(format!(
+                "CSM request expired at {expires_at}"
+            )));
         }
 
         Ok(())

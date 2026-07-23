@@ -41,7 +41,6 @@ impl Signer for TestSigner {
     fn public_key_bytes(&self) -> Vec<u8> {
         vec![9; 32]
     }
-    
 
     fn sign_bytes(&self, _message: &[u8]) -> Result<Vec<u8>, DIDError> {
         Ok(vec![0xAB; 64])

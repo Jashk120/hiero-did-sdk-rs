@@ -60,10 +60,10 @@ pub async fn dereference_did_with_accept(
         return Ok(DereferencedResource::VerificationMethod(vm.clone()));
     }
 
-    if let Some(services) = &doc.service {
-        if let Some(svc) = services.iter().find(|s| s.id == full_id) {
-            return Ok(DereferencedResource::Service(svc.clone()));
-        }
+    if let Some(services) = &doc.service
+        && let Some(svc) = services.iter().find(|s| s.id == full_id)
+    {
+        return Ok(DereferencedResource::Service(svc.clone()));
     }
 
     //nothing found
