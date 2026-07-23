@@ -1,8 +1,8 @@
-# Architecture: `hiero-did-sdk-rs`
+# Architecture: Official Hiero DID SDK (`hiero-did-sdk-rs`)
 
 ## 1. Scope
 
-This repository is a Rust workspace for `did:hedera` operations on Hiero/Hedera. It provides:
+This repository is the official Rust workspace for `did:hedera` operations on Hiero/Hedera. It provides:
 
 - DID write operations: create, update, deactivate.
 - Client-side message signing (CSM) prepare/submit flows for DID writes.
@@ -11,7 +11,7 @@ This repository is a Rust workspace for `did:hedera` operations on Hiero/Hedera.
 - Hedera client configuration and HCS topic/message/file operations.
 - Shared DID/domain primitives, message models, signing boundaries, and lifecycle orchestration.
 - AnonCreds registry operations on top of HCS.
-- An umbrella SDK crate that re-exports the public SDK crates.
+- An umbrella SDK crate (`hiero-did-sdk`) that provides a unified `HieroDidSdk` top-level handler and re-exports all public SDK crates.
 - Local utility crates that support tests or experiments but are not part of the umbrella SDK surface.
 
 Toolchain baseline:
