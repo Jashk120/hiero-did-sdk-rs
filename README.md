@@ -1,6 +1,10 @@
-# hiero-did-sdk-rs
+# Official Hiero DID SDK for Rust (`hiero-did-sdk-rs`)
 
-Rust workspace for creating, updating, deactivating, and resolving `did:hedera` identifiers, with reusable Hedera client and HCS service layers.
+[![Crates.io](https://img.shields.io/crates/v/hiero-did-sdk.svg)](https://crates.io/crates/hiero-did-sdk)
+[![Documentation](https://docs.rs/hiero-did-sdk/badge.svg)](https://docs.rs/hiero-did-sdk)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
+The official Rust workspace for creating, updating, deactivating, and resolving `did:hedera` identifiers on the Hedera network, featuring reusable Hedera client and HCS service layers.
 
 ## Workspace Crates
 
@@ -87,30 +91,34 @@ cargo test -p hiero-did-sdk --test integration_anoncreds -- --nocapture
 ## Quick Start (Create + Resolve)
 
 ```rust
-use hiero_did_core::did::Network;
-use hiero_did_registrar::create::create_did;
-use hiero_did_resolver::{resolve_did, MirrorNodeClient};
-use hiero_sdk::{AccountId, Client, PrivateKey};
-use std::str::FromStr;
+use hiero_did_sdk::{
+    HieroDidSdk,
+    client::{HederaClientConfiguration, HederaNetwork, NetworkConfig},
+    core::did::Network,
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let account_id = AccountId::from_str("0.0.12345")?;
-    let operator_key = PrivateKey::from_str_der("<DER_PRIVATE_KEY>")?;
+    // 1. Configure the network and operator credentials
+    let config = HederaClientConfiguration {
+        networks: vec![NetworkConfig {
+            network: HederaNetwork::Testnet,
+            operator_id: "0.0.12345".to_string(),
+            operator_key: "302e02010030...".to_string(), // DER private key string
+        }],
+    };
 
-    let client = Client::for_testnet();
-    client.set_operator(account_id, operator_key);
+    // 2. Initialize the SDK
+    let sdk = HieroDidSdk::from_config(config, None)?;
 
-    // Create
-    let created = create_did(&client, Network::Testnet, None).await?;
+    // 3. Create a DID
+    let created = sdk.create_did(None, Network::Testnet, None).await?;
     println!("Created DID: {}", created.did);
 
-    // Wait for mirror-node indexing, then resolve
-    let mirror = MirrorNodeClient::for_testnet();
-    mirror.wait_for_mirror(&created.did.topic_id, 30).await?;
-
-    let resolution = resolve_did(&created.did.to_string(), None).await?;
-    println!("Resolved DID: {}", resolution.did_document.id);
+    // 4. Resolve the DID Document
+    let resolution = sdk.resolve_did(&created.did.to_string(), None).await?;
+    println!("Resolved Document ID: {}", resolution.did_document.id);
+    
     Ok(())
 }
 ```
@@ -140,8 +148,11 @@ See [`docs/resolve-did.md`](docs/resolve-did.md) for the full guide.
 
 ## Using the Umbrella Crate
 
+The `hiero_did_sdk` crate provides the `HieroDidSdk` unified handler for typical workflows, and re-exports all public workspace crates for advanced usage:
+
 ```rust
 use hiero_did_sdk::{
+    HieroDidSdk,
     anoncreds, client, core, hcs, lifecycle, messages, method, registrar, resolver, signer,
 };
 ```
