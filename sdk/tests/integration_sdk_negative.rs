@@ -697,3 +697,95 @@ fn orphaned_topic_error_tag_format_lock() {
         err_str
     );
 }
+
+/// CSM submit with an invalid state version — must be rejected.
+#[tokio::test]
+#[serial]
+async fn csm_submit_with_invalid_state_version_is_rejected() {
+    let Some(ctx) = setup() else { return };
+
+    let key = hiero_sdk::PrivateKey::generate_ed25519();
+    let public_key_bytes = key.public_key().to_bytes_raw();
+
+    let mut signing_req = ctx
+        .sdk
+        .prepare_create_did_csm(None, Network::Local, public_key_bytes, None)
+        .await
+        .expect("prepare failed");
+
+    // Tamper: invalid state version
+    signing_req.state.version = 999;
+
+    // Sign the original message
+    let sig = key.sign(&signing_req.message_bytes);
+
+    match signing_req.into_submit_request(sig) {
+        Err(_) => { /* rejected at prepare stage — correct */ }
+        Ok(submit_req) => {
+            let result = ctx.sdk.submit_create_did_csm(None, submit_req).await;
+            assert!(result.is_err(), "invalid state version must be rejected");
+        }
+    }
+}
+
+/// CSM submit with mismatched public key — must be rejected.
+#[tokio::test]
+#[serial]
+async fn csm_submit_with_mismatched_public_key_is_rejected() {
+    let Some(ctx) = setup() else { return };
+
+    let key1 = hiero_sdk::PrivateKey::generate_ed25519();
+    let key2 = hiero_sdk::PrivateKey::generate_ed25519();
+    let public_key_bytes1 = key1.public_key().to_bytes_raw();
+    let public_key_bytes2 = key2.public_key().to_bytes_raw();
+
+    let mut signing_req = ctx
+        .sdk
+        .prepare_create_did_csm(None, Network::Local, public_key_bytes1, None)
+        .await
+        .expect("prepare failed");
+
+    // Tamper: swap public key in the state
+    signing_req.state.expected_public_key_bytes = public_key_bytes2;
+
+    // Sign the original message
+    let sig = key1.sign(&signing_req.message_bytes);
+
+    match signing_req.into_submit_request(sig) {
+        Err(_) => { /* rejected at prepare stage — correct */ }
+        Ok(submit_req) => {
+            let result = ctx.sdk.submit_create_did_csm(None, submit_req).await;
+            assert!(result.is_err(), "mismatched public key must be rejected");
+        }
+    }
+}
+
+/// CSM submit with tampered request ID — must be rejected.
+#[tokio::test]
+#[serial]
+async fn csm_submit_with_tampered_request_id_is_rejected() {
+    let Some(ctx) = setup() else { return };
+
+    let key = hiero_sdk::PrivateKey::generate_ed25519();
+    let public_key_bytes = key.public_key().to_bytes_raw();
+
+    let mut signing_req = ctx
+        .sdk
+        .prepare_create_did_csm(None, Network::Local, public_key_bytes, None)
+        .await
+        .expect("prepare failed");
+
+    // Tamper: alter request_id
+    signing_req.state.request_id = "hacked_request_id".to_string();
+
+    // Sign the original message
+    let sig = key.sign(&signing_req.message_bytes);
+
+    match signing_req.into_submit_request(sig) {
+        Err(_) => { /* rejected at prepare stage — correct */ }
+        Ok(submit_req) => {
+            let result = ctx.sdk.submit_create_did_csm(None, submit_req).await;
+            assert!(result.is_err(), "tampered request ID must be rejected");
+        }
+    }
+}

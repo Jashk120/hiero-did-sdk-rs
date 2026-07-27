@@ -1,33 +1,33 @@
 [package]
 name = "hiero-did-sdk"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
 description = "Rust SDK for did:hedera — create, resolve, and manage Hedera DIDs"
-license = "Apache-2.0"
-repository = "https://github.com/Jashk120/hiero-did-sdk-rs"
 readme = "../README.md"
 
 [dependencies]
-hiero-did-anoncreds = { path = "../anoncreds" }
-hiero-did-client = { path = "../client" }
-hiero-did-core = { path = "../core" }
-hiero-did-hcs = { path = "../hcs" }
-hiero-did-lifecycle = { path = "../lifecycle" }
-hiero-did-method = { path = "../method" }
-hiero-did-messages = { path = "../messages" }
-hiero-did-registrar = { path = "../registrar" }
-hiero-did-resolver = { path = "../resolver" }
-hiero-did-utils = { path = "../utils" }
-hiero-did-signer = { path = "../signer", features = [] }
+hiero-did-anoncreds = { workspace = true }
+hiero-did-client = { workspace = true }
+hiero-did-core = { workspace = true }
+hiero-did-hcs = { workspace = true }
+hiero-did-lifecycle = { workspace = true }
+hiero-did-method = { workspace = true }
+hiero-did-messages = { workspace = true }
+hiero-did-registrar = { workspace = true }
+hiero-did-resolver = { workspace = true }
+hiero-did-utils = { workspace = true }
+hiero-did-signer = { workspace = true }
 
 [features]
 default = ["vault"]
 vault = ["hiero-did-signer/vault"]
 
 [dev-dependencies]
-async-trait = "0.1"
-dotenvy = "0.15.7"
+async-trait = { workspace = true }
+dotenvy = { workspace = true }
 hiero-sdk = { workspace = true }
-serial_test = "3"
-tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
-uuid = { version = "1", features = ["v4"] }
+serial_test = { workspace = true }
+tokio = { workspace = true }
+uuid = { workspace = true }

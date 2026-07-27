@@ -1,10 +1,15 @@
 [package]
 name = "hiero-did-lifecycle"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+description = "State machine and lifecycle engine driving did:hedera create/update/deactivate operations"
+keywords = ["did", "hedera", "lifecycle", "state-machine"]
+categories = ["cryptography", "data-structures"]
 
 [dependencies]
-hiero-did-core = { path = "../core" }
+hiero-did-core = { workspace = true }
 
 [dev-dependencies]
-tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tokio = { workspace = true }

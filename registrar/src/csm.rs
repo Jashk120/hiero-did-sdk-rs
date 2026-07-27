@@ -392,9 +392,7 @@ impl CsmOperationState {
         if let Some(expires_at) = self.expires_at_unix
             && now_unix > expires_at
         {
-            return Err(DIDError::InvalidArgument(format!(
-                "CSM request expired at {expires_at}"
-            )));
+            return Err(DIDError::InvalidArgument(format!("CSM request expired at {expires_at}")));
         }
 
         Ok(())

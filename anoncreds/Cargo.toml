@@ -1,11 +1,16 @@
 [package]
 name = "hiero-did-anoncreds"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+description = "AnonCreds v1 issuance, presentation, and revocation support for did:hedera"
+keywords = ["did", "hedera", "anoncreds", "verifiable-credentials"]
+categories = ["cryptography", "api-bindings"]
 
 [dependencies]
-hiero-did-core = { path = "../core" }
-hiero-did-hcs = { path = "../hcs" }
+hiero-did-core = { workspace = true }
+hiero-did-hcs = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
@@ -16,6 +21,6 @@ time = { workspace = true }
 hiero-sdk = { workspace = true }
 
 [dev-dependencies]
-hiero-did-client = { path = "../client" }
-hiero-did-utils = { path = "../utils" }
-dotenvy = "0.15.7"
+hiero-did-client = { workspace = true }
+hiero-did-utils = { workspace = true }
+dotenvy = { workspace = true }

@@ -1,7 +1,12 @@
 [package]
 name = "hiero-did-utils"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+description = "Shared async/runtime utility helpers for the did:hedera SDK crates"
+keywords = ["did", "hedera", "utils"]
+categories = ["cryptography", "asynchronous"]
 
 [dependencies]
-tokio = { workspace = true, features = ["time"] }
+tokio = { workspace = true }
