@@ -1,7 +1,7 @@
 mod internal;
 
 #[cfg(feature = "vault")]
-mod vault;
+pub mod vault;
 #[cfg(feature = "vault")]
 mod vault_api;
 #[cfg(feature = "vault")]

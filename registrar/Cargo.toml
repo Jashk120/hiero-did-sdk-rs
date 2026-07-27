@@ -1,34 +1,38 @@
 [package]
 name = "hiero-did-registrar"
-version = "0.1.0"
-edition = "2024"
-repository = "https://github.com/Jashk120/hiero-did-sdk-rs"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
 description = "High-level DID creation flow for did:hedera on Hedera"
-license = "Apache-2.0"
 keywords = ["did", "hedera", "registrar", "hcs"]
 categories = ["cryptography", "api-bindings"]
 
 [dependencies]
-hiero-did-core = { version = "0.1.0", path = "../core" }
-hiero-did-messages = { version = "0.1.0", path = "../messages" }
-hiero-did-hcs = { version = "0.1.0", path = "../hcs" }
-hiero-did-signer = { version = "0.1.0", path = "../signer" }
+hiero-did-core = { workspace = true }
+hiero-did-messages = { workspace = true }
+hiero-did-hcs = { workspace = true }
+hiero-did-signer = { workspace = true }
 hiero-sdk = { workspace = true }
-hiero-did-lifecycle = { version = "0.1.0", path = "../lifecycle" }
+hiero-did-lifecycle = { workspace = true }
 tokio = { workspace = true }
 thiserror = { workspace = true }
-serde.workspace = true
+serde = { workspace = true }
 sha2 = { workspace = true }
 hex = { workspace = true }
-tracing = {workspace = true}
+tracing = { workspace = true }
 
 [dev-dependencies]
-dotenvy = "0.15.7"
-hiero-did-client = { version = "0.1.0", path = "../client" }
-hiero-did-resolver = { version = "0.1.0", path = "../resolver" }
+dotenvy = { workspace = true }
+hiero-did-client = { workspace = true }
+# No `version` here on purpose: this is a dev-only, test-only dependency on
+# the crate one level up the dependency graph (resolver depends on
+# registrar via a regular dependency, so registrar can't depend on a
+# *published* resolver without a cycle). Cargo strips path dev-dependencies
+# without a `version` from the published manifest, so this is fine.
+hiero-did-resolver = { path = "../resolver" }
 reqwest = { workspace = true }
 serde_json = { workspace = true }
 
-# registrar/Cargo.toml
 [features]
 debug-mirror = []

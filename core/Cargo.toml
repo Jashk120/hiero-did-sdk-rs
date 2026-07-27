@@ -1,10 +1,10 @@
 [package]
 name = "hiero-did-core"
-version = "0.1.0"
-edition = "2024"
-repository = "https://github.com/Jashk120/hiero-did-sdk-rs"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
 description = "Core types, models, and utilities for did:hedera"
-license = "Apache-2.0"
 keywords = ["did", "hedera", "identity", "hcs"]
 categories = ["cryptography", "data-structures"]
 

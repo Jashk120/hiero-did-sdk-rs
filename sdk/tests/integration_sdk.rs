@@ -15,6 +15,7 @@ mod common;
 use common::local_node::{
     MockExternalSigner,
     setup,
+    poll_until,
 };
 use hiero_did_sdk::core::did::Network;
 use hiero_did_sdk::registrar::{
@@ -98,21 +99,28 @@ async fn lifecycle_create_update_deactivate_resolve() {
         .await
         .expect("deactivate_did failed");
 
-    mirror
-        .wait_for_mirror_stable(&did.topic_id, 1500, 30)
-        .await
-        .expect("Mirror wait post-deactivate failed");
-
     // 6. Resolve post-deactivate — must return deactivated flag in metadata
-    let resolution_after_deactivate = ctx
-        .sdk
-        .resolve_did(&did.to_string(), None)
-        .await
-        .expect("resolve_did (post-deactivate) failed");
-    assert!(
-        resolution_after_deactivate.did_document_metadata.deactivated.unwrap_or(false),
-        "resolved DID should be marked deactivated"
-    );
+    // We use poll_until because wait_for_mirror_stable might return early if the node
+    // hasn't even received the new deactivate message yet (count remains stable at previous value).
+    let sdk = ctx.sdk.clone();
+    let _resolution_after_deactivate = poll_until(
+        || {
+            let did_str = did.to_string();
+            let sdk_clone = sdk.clone();
+            async move {
+                let res = sdk_clone.resolve_did(&did_str, None).await.ok()?;
+                if res.did_document_metadata.deactivated.unwrap_or(false) {
+                    Some(res)
+                } else {
+                    None
+                }
+            }
+        },
+        30,
+        1000,
+    )
+    .await
+    .expect("resolve_did (post-deactivate) failed or timed out waiting for deactivated flag");
 }
 
 /// Create DID, update with multiple operations in one call, confirm all applied.

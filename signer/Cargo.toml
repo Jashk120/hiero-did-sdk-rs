@@ -1,15 +1,15 @@
 [package]
 name = "hiero-did-signer"
-version = "0.1.0"
-edition = "2024"
-repository = "https://github.com/Jashk120/hiero-did-sdk-rs"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
 description = "Ed25519 signing and verification helpers for did:hedera"
-license = "Apache-2.0"
 keywords = ["did", "hedera", "ed25519", "signature"]
 categories = ["cryptography"]
 
 [dependencies]
-hiero-did-core = { version = "0.1.0", path = "../core" }
+hiero-did-core = { workspace = true }
 ed25519-dalek = { workspace = true }
 thiserror = { workspace = true }
 reqwest = { workspace = true, features = ["blocking"], optional = true }
@@ -19,3 +19,7 @@ base64 = { workspace = true, optional = true }
 
 [features]
 vault = ["dep:reqwest", "dep:serde", "dep:serde_json", "dep:base64"]
+
+[dev-dependencies]
+wiremock = { workspace = true }
+tokio = { workspace = true }
