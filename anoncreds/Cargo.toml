@@ -5,7 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license.workspace = true
 description = "AnonCreds v1 issuance, presentation, and revocation support for did:hedera"
-keywords = ["did", "hedera", "anoncreds", "verifiable-credentials"]
+keywords = ["did", "hedera", "anoncreds", "credentials"]
 categories = ["cryptography", "api-bindings"]
 
 [dependencies]
