@@ -12,17 +12,9 @@
 //! will print a clear message to stderr explaining the skip.
 
 mod common;
-use common::local_node::{
-    MockExternalSigner,
-    setup,
-    poll_until,
-};
+use common::local_node::{MockExternalSigner, poll_until, setup};
 use hiero_did_sdk::core::did::Network;
-use hiero_did_sdk::registrar::{
-    AddService,
-    CsmPrepareOptions,
-    DIDUpdateOperation,
-};
+use hiero_did_sdk::registrar::{AddService, CsmPrepareOptions, DIDUpdateOperation};
 use hiero_did_sdk::resolver::MirrorNodeClient;
 use serial_test::serial;
 
@@ -250,7 +242,7 @@ async fn vault_signer_hcs_path_mock_signer_create() {
 
     let result = ctx
         .sdk
-        .create_did_with_signer(None, Network::Local, None, &mock_signer)
+        .create_did_with_signer(None, Network::Local, None, mock_signer.as_arc())
         .await
         .expect("create_did_with_signer (mock signer) failed");
 
@@ -267,11 +259,12 @@ async fn vault_signer_hcs_path_mock_signer_update() {
     let mock_signer = MockExternalSigner::new();
     let create = ctx
         .sdk
-        .create_did_with_signer(None, Network::Local, None, &mock_signer)
+        .create_did_with_signer(None, Network::Local, None, mock_signer.as_arc())
         .await
         .expect("create failed");
 
     let did = create.did.clone();
+    let mock_signer = MockExternalSigner::new();
     let result = ctx
         .sdk
         .update_did_with_signer(
@@ -299,10 +292,11 @@ async fn vault_signer_hcs_path_mock_signer_deactivate() {
     let mock_signer = MockExternalSigner::new();
     let create = ctx
         .sdk
-        .create_did_with_signer(None, Network::Local, None, &mock_signer)
+        .create_did_with_signer(None, Network::Local, None, mock_signer.as_arc())
         .await
         .expect("create failed");
 
+    let mock_signer = MockExternalSigner::new();
     ctx.sdk
         .deactivate_did_with_signer(None, create.did.clone(), &mock_signer)
         .await

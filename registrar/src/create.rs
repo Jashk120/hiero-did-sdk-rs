@@ -1,25 +1,13 @@
+use std::sync::Arc;
 use std::time::Duration;
 
 use hiero_did_core::did::Network;
-use hiero_did_core::{
-    DIDError,
-    HederaDid,
-    KeysUtility,
-    Signer,
-};
-use hiero_did_hcs::HcsTopic;
-use hiero_did_lifecycle::{
-    LifecycleBuilder,
-    LifecycleRunner,
-    LifecycleRunnerOptions,
-};
+use hiero_did_core::{DIDError, HederaDid, KeysUtility, Signer};
+use hiero_did_hcs::{CreateTopicProps, HcsTopic};
+use hiero_did_lifecycle::{LifecycleBuilder, LifecycleRunner, LifecycleRunnerOptions};
 use hiero_did_messages::DIDOwnerMessage;
 use hiero_did_signer::InternalSigner;
-use hiero_sdk::{
-    Client,
-    PrivateKey,
-    TopicId,
-};
+use hiero_sdk::{Client, PrivateKey, TopicId};
 use tokio::time::sleep;
 
 const SUBMIT_MAX_RETRIES: u32 = 3;
@@ -54,18 +42,43 @@ pub async fn create_did(
     let private_key_bytes = hiero_private_key.to_bytes_raw();
     let public_key_bytes = hiero_public_key.to_bytes_raw();
 
-    let topic_id = HcsTopic::create(client).await?;
+    let signer: Arc<dyn Signer> = Arc::new(InternalSigner::from_raw_bytes(&private_key_bytes)?);
+
+    // The DID topic is access-controlled: only the owner key may post to it,
+    // so no third party can rewrite the document after creation. This mirrors
+    // the JS SDK, which sets both the submit and admin key when it creates the
+    // topic backing a DID.
+    let topic_id = create_did_topic(client, Arc::clone(&signer)).await?;
     let topic_id_str = format!("{}", topic_id);
 
     let base58_key = KeysUtility::from_bytes(public_key_bytes.clone()).to_base58();
     let did = HederaDid::new(network, base58_key, topic_id_str);
 
     let message = DIDOwnerMessage::new(did.clone(), public_key_bytes.clone(), controller);
-    let signer = InternalSigner::from_raw_bytes(&private_key_bytes)?;
 
-    finalize_did(client, topic_id, message, &signer).await.map_err(|e| orphan(topic_id, e))?;
+    finalize_did(client, topic_id, message, signer.as_ref())
+        .await
+        .map_err(|e| orphan(topic_id, e))?;
 
     Ok(CreateDIDResult { did, private_key_bytes, public_key_bytes })
+}
+
+/// Creates the access-controlled HCS topic that backs a DID.
+///
+/// The owner key is set as both submit and admin key. A topic created without a
+/// submit key is world-writable, which lets anyone append a forged `DIDOwner`
+/// message; the resolver now rejects those, but the submit key is what stops
+/// them being written at all.
+async fn create_did_topic(client: &Client, signer: Arc<dyn Signer>) -> Result<TopicId, DIDError> {
+    HcsTopic::create_with_props(
+        client,
+        CreateTopicProps {
+            submit_key_signer: Some(Arc::clone(&signer)),
+            admin_key_signer: Some(signer),
+            ..Default::default()
+        },
+    )
+    .await
 }
 
 /// Creates a DID using an externally-managed signer.
@@ -76,11 +89,11 @@ pub async fn create_did_with_signer(
     client: &Client,
     network: Network,
     controller: Option<String>,
-    signer: &dyn Signer,
+    signer: Arc<dyn Signer>,
 ) -> Result<CreateDIDWithSignerResult, DIDError> {
     let public_key_bytes = signer.public_key_bytes();
 
-    let topic_id = HcsTopic::create(client).await?;
+    let topic_id = create_did_topic(client, signer.clone()).await?;
     let topic_id_str = format!("{}", topic_id);
 
     let base58_key = KeysUtility::from_bytes(public_key_bytes.clone()).to_base58();
@@ -88,7 +101,9 @@ pub async fn create_did_with_signer(
 
     let message = DIDOwnerMessage::new(did.clone(), public_key_bytes.clone(), controller);
 
-    finalize_did(client, topic_id, message, signer).await.map_err(|e| orphan(topic_id, e))?;
+    finalize_did(client, topic_id, message, signer.as_ref())
+        .await
+        .map_err(|e| orphan(topic_id, e))?;
 
     Ok(CreateDIDWithSignerResult { did, public_key_bytes })
 }

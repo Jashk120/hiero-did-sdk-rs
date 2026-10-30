@@ -1,54 +1,23 @@
+use std::sync::Arc;
+
 use hiero_did_anoncreds::HederaAnonCredsRegistry;
-use hiero_did_client::{
-    HederaClientConfiguration,
-    HederaClientService,
-};
+use hiero_did_client::{HederaClientConfiguration, HederaClientService};
 use hiero_did_core::did::Network;
-use hiero_did_core::{
-    DIDError,
-    DIDResolution,
-    HederaDid,
-    Signer,
-};
-use hiero_did_hcs::{
-    HcsCacheService,
-    HederaHcsService,
-};
+use hiero_did_core::{DIDError, DIDResolution, HederaDid, Signer};
+use hiero_did_hcs::{HcsCacheService, HederaHcsService};
 use hiero_did_registrar::{
-    CreateDIDResult,
-    CreateDIDWithSignerResult,
-    CsmBatchSigningRequest,
-    CsmBatchSubmitRequest,
-    CsmBatchSubmitResult,
-    CsmPrepareOptions,
-    CsmSigningRequest,
-    CsmSubmitRequest,
-    CsmSubmitResult,
-    DIDUpdateOperation,
-    DeactivateDIDResult,
-    UpdateDIDResult,
-    create_did,
-    create_did_with_signer,
-    deactivate_did,
-    deactivate_did_with_signer,
-    prepare_create_did_csm,
-    prepare_create_did_csm_with_options,
-    prepare_deactivate_did_csm,
-    prepare_deactivate_did_csm_with_options,
-    prepare_update_did_csm,
-    prepare_update_did_csm_with_options,
-    submit_create_did_csm,
-    submit_deactivate_did_csm,
-    submit_update_did_csm,
-    update_did,
-    update_did_with_signer,
+    CreateDIDResult, CreateDIDWithSignerResult, CsmBatchSigningRequest, CsmBatchSubmitRequest,
+    CsmBatchSubmitResult, CsmPrepareOptions, CsmSigningRequest, CsmSubmitRequest, CsmSubmitResult,
+    DIDUpdateOperation, DeactivateDIDResult, UpdateDIDResult, create_did, create_did_with_signer,
+    deactivate_did, deactivate_did_with_signer, prepare_create_did_csm,
+    prepare_create_did_csm_with_options, prepare_deactivate_did_csm,
+    prepare_deactivate_did_csm_with_options, prepare_update_did_csm,
+    prepare_update_did_csm_with_options, submit_create_did_csm, submit_deactivate_did_csm,
+    submit_update_did_csm, update_did, update_did_with_signer,
 };
 use hiero_did_resolver::TopicReader;
 #[cfg(feature = "vault")]
-use hiero_did_signer::{
-    VaultSigner,
-    VaultSignerConfig,
-};
+use hiero_did_signer::{VaultSigner, VaultSignerConfig};
 use hiero_did_utils::polling::poll_until;
 
 /// The top-level SDK handler that simplifies interaction with the did:hedera SDK.
@@ -114,12 +83,16 @@ impl HieroDidSdk {
     }
 
     /// Creates a DID using an externally-managed signer (e.g. `VaultSigner`).
+    ///
+    /// Takes an `Arc` because the signer is also installed as the HCS topic's
+    /// submit and admin key, so that only the DID owner can post to the topic.
+    /// A borrowed `&dyn Signer` would force the topic to be left open.
     pub async fn create_did_with_signer(
         &self,
         network_name: Option<&str>,
         network: Network,
         controller: Option<String>,
-        signer: &dyn Signer,
+        signer: Arc<dyn Signer>,
     ) -> Result<CreateDIDWithSignerResult, DIDError> {
         let client = self.client_service.get_client(network_name)?;
         create_did_with_signer(&client, network, controller, signer).await

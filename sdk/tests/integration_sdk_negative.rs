@@ -7,25 +7,15 @@
 //!
 //! # Prerequisites: same as integration_sdk.rs
 
+use std::sync::Arc;
+
 mod common;
 use common::local_node::{
-    FailingSigner,
-    MalformedSigner,
-    MockExternalSigner,
-    poll_until,
-    setup,
-    wait_for_did,
+    FailingSigner, MalformedSigner, MockExternalSigner, poll_until, setup, wait_for_did,
 };
 use hiero_did_sdk::core::did::Network;
-use hiero_did_sdk::core::{
-    DIDError,
-    HederaDid,
-};
-use hiero_did_sdk::registrar::{
-    AddService,
-    CsmPrepareOptions,
-    DIDUpdateOperation,
-};
+use hiero_did_sdk::core::{DIDError, HederaDid};
+use hiero_did_sdk::registrar::{AddService, CsmPrepareOptions, DIDUpdateOperation};
 use serial_test::serial;
 
 // ---------------------------------------------------------------------------
@@ -268,7 +258,7 @@ async fn csm_cross_did_replay_does_not_affect_other_did() {
             None,
             Network::Local,
             None,
-            &hiero_did_sdk::hcs::LocalSigner::new(key_a.clone()),
+            Arc::new(hiero_did_sdk::hcs::LocalSigner::new(key_a.clone())),
         )
         .await
         .expect("create DID_A failed");
@@ -279,7 +269,7 @@ async fn csm_cross_did_replay_does_not_affect_other_did() {
             None,
             Network::Local,
             None,
-            &hiero_did_sdk::hcs::LocalSigner::new(key_b.clone()),
+            Arc::new(hiero_did_sdk::hcs::LocalSigner::new(key_b.clone())),
         )
         .await
         .expect("create DID_B failed");
@@ -400,7 +390,8 @@ async fn create_did_with_failing_signer_propagates_error() {
     let Some(ctx) = setup() else { return };
 
     let failing = FailingSigner;
-    let result = ctx.sdk.create_did_with_signer(None, Network::Local, None, &failing).await;
+    let result =
+        ctx.sdk.create_did_with_signer(None, Network::Local, None, Arc::new(failing)).await;
 
     assert!(result.is_err(), "failing signer must propagate error cleanly");
 }
@@ -412,7 +403,8 @@ async fn create_did_with_malformed_signer_propagates_error() {
     let Some(ctx) = setup() else { return };
 
     let malformed = MalformedSigner;
-    let result = ctx.sdk.create_did_with_signer(None, Network::Local, None, &malformed).await;
+    let result =
+        ctx.sdk.create_did_with_signer(None, Network::Local, None, Arc::new(malformed)).await;
 
     assert!(result.is_err(), "malformed signer output must be rejected, not panicked");
 }
@@ -426,7 +418,7 @@ async fn update_did_with_failing_signer_propagates_error() {
     let mock = MockExternalSigner::new();
     let create = ctx
         .sdk
-        .create_did_with_signer(None, Network::Local, None, &mock)
+        .create_did_with_signer(None, Network::Local, None, mock.as_arc())
         .await
         .expect("create failed");
 
