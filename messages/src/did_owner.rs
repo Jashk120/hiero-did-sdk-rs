@@ -1,21 +1,11 @@
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
-use hiero_did_core::{
-    DIDError,
-    HederaDid,
-    KeysUtility,
-};
+use hiero_did_core::{DIDError, HederaDid, KeysUtility};
 use hiero_did_lifecycle::LifecycleMessage;
 use serde_json;
 
-use crate::envelope::{
-    HcsEnvelope,
-    HcsMessage,
-};
-use crate::events::{
-    DIDOwnerEvent,
-    DIDOwnerEventData,
-};
+use crate::envelope::{HcsEnvelope, HcsMessage};
+use crate::events::{DIDOwnerEvent, DIDOwnerEventData};
 
 pub struct DIDOwnerMessage {
     pub did: HederaDid,
@@ -42,8 +32,10 @@ impl DIDOwnerMessage {
                 id: did_string.clone(),
                 key_type: "Ed25519VerificationKey2020".to_string(),
                 controller,
-                public_key_multibase: KeysUtility::from_bytes(self.public_key_bytes.clone())
-                    .to_multibase(),
+                public_key_multibase: Some(
+                    KeysUtility::from_bytes(self.public_key_bytes.clone()).to_multibase(),
+                ),
+                public_key_base58: None,
             },
         };
 
