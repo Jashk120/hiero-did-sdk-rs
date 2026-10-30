@@ -2,30 +2,15 @@ use std::collections::HashMap;
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
-use hiero_did_core::did::{
-    DID_ROOT_KEY_ID,
-    HederaDid,
-};
+use hiero_did_core::did::{DID_ROOT_KEY_ID, HederaDid};
 use hiero_did_core::{
-    DIDDocument,
-    DIDDocumentMetadata,
-    DIDError,
-    DIDResolution,
-    DIDResolutionMetadata,
-    KeyCapabilityMethod,
-    KeysUtility,
-    Service,
-    VerificationMethod,
-    VerificationMethodMultibase,
+    DIDDocument, DIDDocumentMetadata, DIDError, DIDResolution, DIDResolutionMetadata,
+    KeyCapabilityMethod, KeysUtility, Service, VerificationMethod, VerificationMethodMultibase,
 };
 use hiero_did_messages::envelope::HcsEnvelope;
 use hiero_did_messages::events::{
-    DIDAddServiceEvent,
-    DIDAddVerificationMethodEvent,
-    DIDEvent,
-    DIDOwnerEvent,
-    DIDRemoveServiceEvent,
-    DIDRemoveVerificationMethodEvent,
+    DIDAddServiceEvent, DIDAddVerificationMethodEvent, DIDEvent, DIDOwnerEvent,
+    DIDRemoveServiceEvent, DIDRemoveVerificationMethodEvent,
 };
 use hiero_did_signer::InternalVerifier;
 use serde_json;
@@ -53,7 +38,26 @@ impl DidDocumentBuilder {
     pub async fn resolve(&self, did: &HederaDid) -> Result<DIDResolution, DIDError> {
         let did_string = did.to_string();
 
-        let mut verifier: Option<InternalVerifier> = None;
+        // The trust anchor is the key embedded in the DID's own
+        // method-specific identifier — never a key taken from a message
+        // payload. `did:hedera` puts the creator's public key directly in the
+        // DID string, so it is the one key an attacker cannot choose, which
+        // makes it the only safe place to bootstrap verification from.
+        //
+        // Control may legitimately rotate later via a `DIDOwner` update event
+        // (DID method spec 3.2.2), so `current` is re-pointed as rotations are
+        // verified — but it can only ever move to a key that the *previous*
+        // controller signed for.
+        let anchor: [u8; 32] = KeysUtility::from_base58(&did.base58_key)
+            .map_err(|e| DIDError::InvalidDid(format!("DID key is not valid base58: {e}")))?
+            .to_bytes()
+            .try_into()
+            .map_err(|_| {
+                DIDError::InvalidDid("DID key is not a 32-byte Ed25519 public key".to_string())
+            })?;
+
+        let mut current = InternalVerifier::from_bytes(&anchor)?;
+
         let mut verification_methods: HashMap<String, VerificationMethod> = HashMap::new();
         let mut services: HashMap<String, Service> = HashMap::new();
         let mut authentication: HashMap<String, KeyCapabilityMethod> = HashMap::new();
@@ -83,18 +87,21 @@ impl DidDocumentBuilder {
 
             // handle delete — verify sig then tombstone
             if message.operation == "delete" {
-                if let Some(ref v) = verifier {
-                    let msg_bytes = serde_json::to_vec(message)
-                        .map_err(|e| DIDError::SerializationError(e.to_string()))?;
-                    let sig_bytes = BASE64
-                        .decode(&envelope.signature)
-                        .map_err(|_| DIDError::InvalidSignature("Bad base64 signature".into()))?;
-                    if v.verify(&msg_bytes, &sig_bytes)? {
+                let msg_bytes = match serde_json::to_vec(message) {
+                    Ok(b) => b,
+                    Err(_) => continue,
+                };
+                let sig_bytes = match BASE64.decode(&envelope.signature) {
+                    Ok(b) => b,
+                    Err(_) => continue,
+                };
+                match current.verify(&msg_bytes, &sig_bytes) {
+                    Ok(true) => {
                         deactivated = true;
                         break;
                     }
+                    _ => continue,
                 }
-                continue;
             }
 
             // decode event
@@ -115,34 +122,58 @@ impl DidDocumentBuilder {
                 Err(_) => continue,
             };
 
-            // for DIDOwner: extract public key to build verifier before sig check
-            if let DIDEvent::Owner(ref owner_event) = event {
-                let key_bytes =
-                    KeysUtility::from_multibase(&owner_event.did_owner.public_key_multibase)?
-                        .to_bytes()
-                        .to_vec();
-                verifier = Some(InternalVerifier::from_bytes(&key_bytes)?);
-            }
-
-            // verify signature — skip message if invalid
-            let Some(ref v) = verifier else { continue };
-            let msg_bytes = serde_json::to_vec(message)
-                .map_err(|e| DIDError::SerializationError(e.to_string()))?;
+            // verify signature against the *established* controller key.
+            // Never against a key carried in the message being verified.
+            let msg_bytes = match serde_json::to_vec(message) {
+                Ok(b) => b,
+                Err(_) => continue,
+            };
             let sig_bytes = match BASE64.decode(&envelope.signature) {
                 Ok(b) => b,
                 Err(_) => continue,
             };
-            if !v.verify(&msg_bytes, &sig_bytes)? {
+            if !matches!(current.verify(&msg_bytes, &sig_bytes), Ok(true)) {
                 continue;
             }
 
             // apply event to document state
             match event {
                 DIDEvent::Owner(owner_event) => {
+                    // The event's own id must be the DID we are resolving.
+                    if owner_event.did_owner.id != did_string {
+                        continue;
+                    }
+
+                    let claimed = match owner_event.did_owner.effective_key_bytes() {
+                        Ok(k) => k,
+                        Err(_) => continue,
+                    };
+
+                    // The first owner event establishes the document, so it
+                    // must be self-consistent with the DID string. Without
+                    // this, anyone able to post to the topic could publish an
+                    // owner event naming their own key, have it verified
+                    // against that same key, and take over the document.
+                    if !exists && claimed != anchor {
+                        continue;
+                    }
+
+                    // A rotation is only honoured because the signature above
+                    // was verified with the *previous* controller's key.
                     exists = true;
+                    current = match InternalVerifier::from_bytes(&claimed) {
+                        Ok(v) => v,
+                        Err(_) => continue,
+                    };
+
+                    let owner_multibase = match owner_event.did_owner.effective_key_multibase() {
+                        Ok(m) => m,
+                        Err(_) => continue,
+                    };
                     apply_did_owner(
                         &owner_event,
                         &did_string,
+                        &owner_multibase,
                         &mut verification_methods,
                         &mut controller,
                     );
@@ -154,6 +185,7 @@ impl DidDocumentBuilder {
                 DIDEvent::AddVerificationMethod(vm_event) => {
                     apply_add_verification_method(
                         &vm_event,
+                        &did_string,
                         &mut verification_methods,
                         &mut authentication,
                         &mut assertion_method,
@@ -166,6 +198,7 @@ impl DidDocumentBuilder {
                 DIDEvent::RemoveVerificationMethod(vm_event) => {
                     apply_remove_verification_method(
                         &vm_event,
+                        &did_string,
                         &mut verification_methods,
                         &mut authentication,
                         &mut assertion_method,
@@ -176,11 +209,11 @@ impl DidDocumentBuilder {
                 }
 
                 DIDEvent::AddService(svc_event) => {
-                    apply_add_service(&svc_event, &mut services);
+                    apply_add_service(&svc_event, &did_string, &mut services);
                 }
 
                 DIDEvent::RemoveService(svc_event) => {
-                    apply_remove_service(&svc_event, &mut services);
+                    apply_remove_service(&svc_event, &did_string, &mut services);
                 }
 
                 // Deactivate is handled above via operation == "delete"
@@ -271,6 +304,7 @@ impl DidDocumentBuilder {
 fn apply_did_owner(
     event: &DIDOwnerEvent,
     did_string: &str,
+    owner_key_multibase: &str,
     verification_methods: &mut HashMap<String, VerificationMethod>,
     controller: &mut Option<String>,
 ) {
@@ -279,14 +313,16 @@ fn apply_did_owner(
         id: vm_id.clone(),
         key_type: "Ed25519VerificationKey2020".to_string(),
         controller: event.did_owner.controller.clone(),
-        public_key_multibase: event.did_owner.public_key_multibase.clone(),
+        public_key_multibase: owner_key_multibase.to_string(),
     });
     *controller = Some(event.did_owner.controller.clone());
     verification_methods.insert(vm_id, vm);
 }
 
+#[allow(clippy::too_many_arguments)]
 fn apply_add_verification_method(
     event: &DIDAddVerificationMethodEvent,
+    did_string: &str,
     verification_methods: &mut HashMap<String, VerificationMethod>,
     authentication: &mut HashMap<String, KeyCapabilityMethod>,
     assertion_method: &mut HashMap<String, KeyCapabilityMethod>,
@@ -295,6 +331,13 @@ fn apply_add_verification_method(
     capability_delegation: &mut HashMap<String, KeyCapabilityMethod>,
 ) {
     let data = &event.verification_method;
+
+    // Root-key rotation must go through a DIDOwner event, which is signed by
+    // the outgoing controller key. An add-event must not be able to silently
+    // replace `#did-root-key`, and ids must belong to the DID being resolved.
+    if data.id.ends_with(DID_ROOT_KEY_ID) || !data.id.starts_with(did_string) {
+        return;
+    }
 
     // upsert into verificationMethod if it has a public key
     if !data.public_key_multibase.is_empty() {
@@ -330,8 +373,10 @@ fn apply_add_verification_method(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn apply_remove_verification_method(
     event: &DIDRemoveVerificationMethodEvent,
+    did_string: &str,
     verification_methods: &mut HashMap<String, VerificationMethod>,
     authentication: &mut HashMap<String, KeyCapabilityMethod>,
     assertion_method: &mut HashMap<String, KeyCapabilityMethod>,
@@ -340,6 +385,12 @@ fn apply_remove_verification_method(
     capability_delegation: &mut HashMap<String, KeyCapabilityMethod>,
 ) {
     let id = &event.verification_method.id;
+
+    // `#did-root-key` is not removable, and only this DID's own fragments may
+    // be touched. Mirrors the JS resolver's handleRemoveVerificationMethod.
+    if id.ends_with(DID_ROOT_KEY_ID) || !id.starts_with(did_string) {
+        return;
+    }
 
     // remove from verificationMethod and all relationship buckets
     verification_methods.remove(id);
@@ -350,8 +401,17 @@ fn apply_remove_verification_method(
     capability_delegation.remove(id);
 }
 
-fn apply_add_service(event: &DIDAddServiceEvent, services: &mut HashMap<String, Service>) {
+fn apply_add_service(
+    event: &DIDAddServiceEvent,
+    did_string: &str,
+    services: &mut HashMap<String, Service>,
+) {
     let data = &event.service;
+    // A service id must belong to the DID being resolved, otherwise a validly
+    // signed event could graft a foreign DID's fragment into this document.
+    if !data.id.starts_with(did_string) {
+        return;
+    }
     let svc = Service {
         id: data.id.clone(),
         service_type: data.service_type.clone(),
@@ -360,7 +420,14 @@ fn apply_add_service(event: &DIDAddServiceEvent, services: &mut HashMap<String, 
     services.insert(data.id.clone(), svc);
 }
 
-fn apply_remove_service(event: &DIDRemoveServiceEvent, services: &mut HashMap<String, Service>) {
+fn apply_remove_service(
+    event: &DIDRemoveServiceEvent,
+    did_string: &str,
+    services: &mut HashMap<String, Service>,
+) {
+    if !event.service.id.starts_with(did_string) {
+        return;
+    }
     services.remove(&event.service.id);
 }
 
@@ -373,19 +440,10 @@ mod tests {
     use base64::Engine;
     use base64::engine::general_purpose::STANDARD as BASE64;
     use hiero_did_core::did::Network;
-    use hiero_did_core::{
-        DIDError,
-        HederaDid,
-        KeysUtility,
-    };
+    use hiero_did_core::{DIDError, HederaDid, KeysUtility};
     use hiero_did_messages::{
-        DIDAddServiceMessage,
-        DIDAddVerificationMethodMessage,
-        DIDDeactivateMessage,
-        DIDOwnerMessage,
-        DIDRemoveServiceMessage,
-        DIDRemoveVerificationMethodMessage,
-        HcsEnvelope,
+        DIDAddServiceMessage, DIDAddVerificationMethodMessage, DIDDeactivateMessage,
+        DIDOwnerMessage, DIDRemoveServiceMessage, DIDRemoveVerificationMethodMessage, HcsEnvelope,
     };
     use hiero_did_signer::InternalSigner;
 
